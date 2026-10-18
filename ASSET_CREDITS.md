@@ -1,5 +1,21 @@
 # Asset credits and provenance
 
+## Original foreground artwork, final recording revision
+
+The live black hole, spiral galaxy and learning nebula are original AI-assisted assets generated with the built-in image_gen tool from the supplied references. See ARTWORK_PROMPTS.md for exact prompts, final project paths, dimensions, provenance and encoding details. They have genuine alpha, are fitted without cropping and are animated without changing their silhouettes. The generated galaxy is fictional; NGC 1300 is its credited visual reference, not its identity. Reference: NASA, ESA, and The Hubble Heritage Team (STScI/AURA), [NGC 1300](https://esahubble.org/images/opo0501a/), [CC BY 4.0](https://esahubble.org/copyright/). Older entries below describe historical assets and research.
+
+## Recording corrections, 18 October 2026
+
+`saturn-map.webp`: [Solar System Scope / INOVE Saturn map](https://www.solarsystemscope.com/textures/download/2k_saturn.jpg), [CC BY 4.0](https://www.solarsystemscope.com/textures/), resized from 2048×1024 to 1024×512 and encoded as WebP. It replaces the Cassini photograph in the experience scene with an explicitly illustrated sphere and code-drawn rings. Main planetary maps now use spherical shader projection. The current black-hole artwork is animated in place; it remains the owner-supplied reference, not a film frame or a physical ray-tracing simulation.
+
+Implementation reference: [MDN WebGL best practices](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices), including bounded back buffers and graphics-context failure handling. One shared WebGL buffer serves visible scenes; the original Canvas/photo/CSS fallbacks remain.
+
+## Current live refinement, 18 October 2026
+
+See [LIVE_REFERENCES.md](LIVE_REFERENCES.md) for the full current asset list, adaptations, original source filenames, internet research and publication-rights status. Owner-supplied black-hole, Milky Way, nebula, planetary composition and meteor-landscape references are optimized locally as WebP. NGC 1300 is credited **NASA, ESA, and The Hubble Heritage Team (STScI/AURA)**, [ESA/Hubble source](https://esahubble.org/images/opo0501a/), [CC BY 4.0 terms](https://esahubble.org/copyright/). Its full credit is visible next to the actual scene; the image is also sampled into animated particles. Existing Solar System Scope maps, font notices and Saturn credit below remain applicable. No DNEG/movie frames are included as newly sourced media.
+
+The remaining entries document earlier versions and research assets. They do not imply that the current hero is a NASA image, or that the old Whirlpool/Orion pictures are the current interactive galaxy/nebula.
+
 ## Version 4 animated surface maps
 
 Earth, Moon, Jupiter and Mars maps by [Solar System Scope / INOVE](https://edu.solarsystemscope.com/textures/), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The 2K JPEGs were resized to 1024 pixels wide and encoded as WebP. CSS shading, surface movement and orbital placement are artistic presentation effects.

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="960" viewBox="0 0 1200 960">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#161c30"/><stop offset=".55" stop-color="#172e38"/><stop offset="1" stop-color="#0a141a"/></linearGradient>
+ <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f7d49d"/><stop offset=".48" stop-color="#d9ab7a"/><stop offset="1" stop-color="#7378ee"/></linearGradient>
+ <radialGradient id="haze"><stop stop-color="#e7ae71" stop-opacity=".26"/><stop offset="1" stop-color="#e7ae71" stop-opacity="0"/></radialGradient>
+ <pattern id="grid" width="55" height="55" patternUnits="userSpaceOnUse"><path d="M55 0H0V55" fill="none" stroke="#b2e3e1" stroke-opacity=".12"/></pattern>
+</defs>
+<rect width="1200" height="960" fill="url(#bg)"/><rect width="1200" height="960" fill="url(#grid)"/>
+<ellipse cx="650" cy="480" rx="460" ry="420" fill="url(#haze)"/>
+<g fill="none" stroke="url(#ribbon)" stroke-linecap="round">
+<path d="M245 632 C450 780 478 170 740 240 S1040 740 766 760 420 405 660 420 891 600 770 594" stroke-width="52" opacity=".14"/>
+<path d="M245 632 C450 780 478 170 740 240 S1040 740 766 760 420 405 660 420 891 600 770 594" stroke-width="4.5"/>
+<path d="M244 593 C420 739 494 146 742 215 S1061 710 769 731 449 400 672 391 876 572 764 570" stroke-width="1.5" opacity=".6"/>
+<path d="M260 667 C479 815 478 203 738 269 S1012 771 760 785 393 435 651 450 910 639 780 624" stroke-width="1.5" opacity=".6"/>
+</g>
+<circle cx="762" cy="594" r="12" fill="#ffe1ac"/><circle cx="762" cy="594" r="32" fill="none" stroke="#ffe1ac" opacity=".6"/>
+<text x="58" y="84" fill="#edd4b0" font-family="monospace" font-size="24" letter-spacing="8">FIELD NOTES / 002</text>
+<text x="62" y="877" fill="#a1cfcd" font-family="monospace" font-size="20" letter-spacing="5">SYSTEMS THAT MOVE WITH YOU</text>
+<text x="1110" y="877" fill="#a1cfcd" font-family="monospace" font-size="20" text-anchor="end">02-02</text>
+</svg>

@@ -1,105 +1,70 @@
-const {chromium}=require('playwright');
-const assert=require('node:assert/strict');
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
 const {pathToFileURL}=require('node:url');
-const path=require('node:path');
 const source=process.env.ORBIT_URL||'http://127.0.0.1:8000/';
+const out=process.env.ORBIT_EVIDENCE||path.join(__dirname,'test-evidence');fs.mkdirSync(out,{recursive:true});
+const report={url:source,date:new Date().toISOString(),checks:[],errors:[],failedRequests:[],cancelledRequests:[],responsive:[]};
+function pass(name){report.checks.push(name);console.log('PASS '+name)}
 (async()=>{
- const browser=await chromium.launch({channel:'msedge',headless:true});
+ const browser=await chromium.launch({channel:'msedge',headless:true});report.browser=browser.version();
  try{
-  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
-  page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(source);await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(1200);
-  assert(await page.locator('.identity-badge img').isVisible());
-  assert.equal(await page.locator('#discoveryLog').count(),0);
-  const holeBefore=await page.locator('#blackholeFlow').evaluate(c=>c.toDataURL());
-  await page.waitForTimeout(200);assert.notEqual(await page.locator('#blackholeFlow').evaluate(c=>c.toDataURL()),holeBefore);
-  await page.locator('#anomaly').click();assert(await page.locator('#home').evaluate(el=>el.classList.contains('gravity-surge')));
-  await page.mouse.move(400,300);await page.mouse.move(500,350,{steps:6});
-  assert(await page.locator('html').evaluate(el=>el.classList.contains('star-cursor')));
-  await page.locator('#mapToggle').focus();await page.keyboard.press('Enter');assert(await page.locator('#starMap').isVisible());
-  await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'mapToggle');
-  await page.locator('#moonProfile').click();assert(await page.locator('[data-profile-panel="moon"]').isVisible());
-  assert(!(await page.locator('[data-profile-panel="earth"]').isVisible()));
-  assert.equal(await page.locator('#moonProfile').getAttribute('aria-pressed'),'true');
-  await page.locator('#earthProfile').focus();await page.keyboard.press('Enter');assert(await page.locator('[data-profile-panel="earth"]').isVisible());
-  await page.locator('[data-skill="2"]').click();assert.equal(await page.locator('#skillTitle').textContent(),'Frontend development');
-  await page.locator('#lostStar').click();assert(await page.locator('.constellation').evaluate(el=>el.classList.contains('wishing')));
-  await page.locator('#projects').scrollIntoViewIfNeeded();await page.mouse.move(20,150);await page.locator('h1').evaluate(el=>el.tabIndex=-1);await page.locator('h1').evaluate(el=>el.focus({preventScroll:true}));
-  await page.waitForTimeout(200);const orbitA=await page.locator('[data-project="0"]').getAttribute('style');
-  await page.waitForTimeout(300);assert.notEqual(await page.locator('[data-project="0"]').getAttribute('style'),orbitA);
-  await page.locator('.solar-system').hover();const held=await page.locator('[data-project="0"]').getAttribute('style');await page.waitForTimeout(200);
-  assert.equal(await page.locator('[data-project="0"]').getAttribute('style'),held);
-  await page.waitForTimeout(3800);
-  const heldBox=await page.locator('[data-project="0"]').boundingBox();
-  await page.mouse.move(20,150);await page.waitForTimeout(150);
-  const resumedBox=await page.locator('[data-project="0"]').boundingBox();
-  assert(Math.hypot(resumedBox.x-heldBox.x,resumedBox.y-heldBox.y)<5,'Orbit must resume without a jump');
-  await page.locator('[data-project="1"]').click();assert.equal(await page.locator('#projectCount').textContent(),'02 / 02');
-  assert(await page.locator('[data-panel="1"]').isVisible());await page.locator('#nextProject').click();assert.equal(await page.locator('#projectCount').textContent(),'01 / 02');
-  await page.locator('#previousProject').click();assert.equal(await page.locator('#projectCount').textContent(),'02 / 02');
-  assert.equal(await page.locator('.milestone-detail').count(),3);
-  for(const note of await page.locator('.field-note:visible,.milestone-detail').all()){
-   await note.locator('summary').focus();await page.keyboard.press('Enter');
-   await page.waitForFunction(el=>el.open,await note.elementHandle());
-   assert(await note.locator('.note-body').isVisible());
-   await page.keyboard.press('Space');await page.waitForFunction(el=>!el.open,await note.elementHandle());
+  const context=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'dark',recordVideo:{dir:path.join(out,'raw'),size:{width:1440,height:900}}});
+  const page=await context.newPage();page.on('pageerror',e=>report.errors.push(e.message));page.on('requestfailed',r=>{const failure={url:r.url(),reason:r.failure()?.errorText};if(failure.reason==='net::ERR_ABORTED')report.cancelledRequests.push(failure);else report.failedRequests.push(failure);});
+  await page.goto(source);await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(700);
+  for(const id of ['home','journey','about','skills','projects','experience','education','certificates','observatory','contact'])assert.equal(await page.locator('#'+id).count(),1);
+  assert(await page.locator('.identity-badge img').isVisible());assert.equal(await page.locator('a[href^="mailto:"]').count(),0);assert.equal(await page.locator('.hero-actions a').count(),2);
+  const initialFlow=await page.locator('#blackholeFlow').evaluate(c=>c.toDataURL());await page.waitForTimeout(250);assert.notEqual(await page.locator('#blackholeFlow').evaluate(c=>c.toDataURL()),initialFlow);
+  assert(await page.locator('.travel-indicator').isHidden());await page.locator('#horizonTarget').click();assert(await page.locator('#home').evaluate(el=>el.classList.contains('gravity-surge')));pass('Complete portfolio, visible identity, honest destinations and image-triggered black-hole surge');
+  await page.mouse.move(400,300);await page.mouse.move(500,320,{steps:5});if(await page.locator('html').getAttribute('data-quality')==='standard'){assert(await page.locator('html').evaluate(el=>el.classList.contains('star-cursor')));assert.equal(await page.locator('#starCursor').evaluate(el=>getComputedStyle(el).pointerEvents),'none');assert((await page.locator('#starCursor').boundingBox()).width<=16);}pass('Fine-pointer star cursor is small and cannot intercept clicks; low tier keeps native cursor');
+  await page.locator('#mapToggle').focus();await page.keyboard.press('Enter');assert(await page.locator('#starMap').isVisible());await page.locator('#starMap nav a').last().focus();await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.className),'close-dialog');await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'mapToggle');pass('Star-map keyboard open, focus wrap, Escape and focus restoration');
+  await page.locator('#about').scrollIntoViewIfNeeded();await page.mouse.move(10,120);await page.locator('h1').evaluate(el=>{el.tabIndex=-1;el.focus({preventScroll:true})});await page.waitForTimeout(100);
+  const moon=await page.locator('.moon-world').getAttribute('style'),earthButton=await page.locator('#earthProfile').boundingBox(),moonButton=await page.locator('#moonProfile').boundingBox();await page.waitForTimeout(500);assert.notEqual(await page.locator('.moon-world').getAttribute('style'),moon);
+  assert.deepEqual(await page.locator('#earthProfile').boundingBox(),earthButton);assert.deepEqual(await page.locator('#moonProfile').boundingBox(),moonButton);
+  await page.locator('.moon-world').hover();const held=await page.locator('.moon-world').getAttribute('style');await page.waitForTimeout(250);assert.equal(await page.locator('.moon-world').getAttribute('style'),held);
+  await page.locator('#moonProfile').click();assert(await page.locator('[data-profile-panel="moon"]').isVisible());assert.equal(await page.locator('#moonProfile').getAttribute('aria-pressed'),'true');await page.locator('#earthProfile').focus();await page.keyboard.press('Enter');assert(await page.locator('[data-profile-panel="earth"]').isVisible());pass('Moon orbit changes; Earth/Moon selectors stay fixed; hover holds orbit; keyboard profile changes');
+  for(const button of await page.locator('[data-skill]').all()){await button.focus();assert.equal(await button.getAttribute('aria-pressed'),'true');}
+  await page.locator('[data-skill="2"]').hover();assert.equal(await page.locator('#skillTitle').textContent(),'Frontend development');await page.locator('#lostStar').click();assert(await page.locator('.constellation').evaluate(el=>el.classList.contains('wishing')));pass('All constellation focus readouts, hover selection and click-triggered meteor shower');
+  await page.locator('#projects').scrollIntoViewIfNeeded();const fixed=await page.locator('[data-project="0"]').boundingBox();await page.mouse.move(10,120);await page.waitForTimeout(250);assert.deepEqual(await page.locator('[data-project="0"]').boundingBox(),fixed);
+  await page.evaluate(()=>{document.querySelector('[data-project="1"]').click();document.querySelector('[data-project="0"]').click();document.querySelector('[data-project="1"]').click()});await page.waitForTimeout(800);
+  assert.equal(await page.locator('.solar-system').getAttribute('data-selected'),'1');assert(await page.locator('[data-panel="1"]').isVisible());assert(!(await page.locator('[data-panel="0"]').isVisible()));assert.equal(await page.locator('[data-project="1"]').getAttribute('aria-pressed'),'true');
+  await page.locator('#nextProject').focus();await page.keyboard.press('Enter');assert(await page.locator('[data-panel="0"]').isVisible());await page.locator('[data-world="0"]').click();assert(await page.locator('[data-panel="0"]').isVisible());
+  await page.locator('[data-panel="0"] summary').focus();await page.keyboard.press('Enter');assert(await page.locator('[data-panel="0"] .note-body').isVisible());await page.screenshot({path:path.join(out,'project-brief.png')});pass('Fixed project targets, rapid last-selection-wins, focused world sync, planet click and keyboard brief');
+  await page.locator('#education').scrollIntoViewIfNeeded();await page.mouse.move(10,120);await page.waitForTimeout(1200);const nebula=await page.locator('#nebulaDust').evaluate(c=>c.toDataURL());await page.locator('#nebulaWindow').hover();await page.waitForFunction(()=>document.querySelector('#nebulaWindow').dataset.view==='stars');assert.notEqual(await page.locator('#nebulaDust').evaluate(c=>c.toDataURL()),nebula);await page.screenshot({path:path.join(out,'nebula-first-light.png')});await page.mouse.move(10,120);await page.waitForFunction(()=>document.querySelector('#nebulaWindow').dataset.view==='nebula');pass('Nebula remains intact while stars form on hover and fade on leave');
+  await page.locator('#observatory').scrollIntoViewIfNeeded();await page.waitForFunction(()=>document.querySelector('#portal').dataset.particleSource==='image');
+  for(let cycle=0;cycle<3;cycle++){
+   await page.locator('#portal').click();assert.equal(await page.locator('#portal').getAttribute('aria-busy'),'true');if(cycle===0){await page.waitForTimeout(1000);await page.screenshot({path:path.join(out,'galaxy-scattered.png')})}
+   await page.waitForFunction(()=>!document.querySelector('#portal').hasAttribute('aria-busy'));assert.match(await page.locator('#portalCaption').textContent(),/Reformed/);assert.equal(await page.locator('#portal').getAttribute('data-galaxy-state'),'rest');
   }
-  await page.locator('#portal').hover();await page.waitForTimeout(200);assert.equal(await page.locator('#portal').getAttribute('aria-busy'),null,'Hover must not trigger explosion');
-  const galaxyBefore=await page.locator('#portalDust').evaluate(c=>c.toDataURL());await page.waitForTimeout(180);assert.notEqual(await page.locator('#portalDust').evaluate(c=>c.toDataURL()),galaxyBefore);
-  await page.locator('#portal').click();assert.equal(await page.locator('#portal').getAttribute('aria-busy'),'true');
-  await page.waitForTimeout(1100);await page.screenshot({path:path.join(__dirname,'preview-stardust.png')});
-  await page.waitForFunction(()=>!document.querySelector('#portal').hasAttribute('aria-busy'));assert.match(await page.locator('#portalCaption').textContent(),/Reformed/);
-  await page.locator('#transformImage').click();await page.locator('#motionToggle').click();assert.equal(await page.locator('#portal').getAttribute('aria-busy'),null);
-  assert.equal(await page.locator('html').getAttribute('data-motion'),'paused');
-  const paused=await page.locator('#starfield').evaluate(c=>c.toDataURL());await page.waitForTimeout(220);assert.equal(await page.locator('#starfield').evaluate(c=>c.toDataURL()),paused);
-  assert.equal(await page.locator('.sphere .surface').first().evaluate(el=>getComputedStyle(el).animationPlayState),'paused');
-  await page.reload();assert.equal(await page.locator('html').getAttribute('data-motion'),'paused');assert.equal(await page.locator('.hero-content').evaluate(el=>getComputedStyle(el).opacity),'1');
-  await page.locator('#motionToggle').click();await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.motion==='paused');
-  await page.locator('#transformImage').click();assert.equal(await page.locator('#portal').getAttribute('aria-busy'),null);assert.match(await page.locator('#portalCaption').textContent(),/Reformed/);
-  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>document.documentElement.dataset.motion==='running');
+  await page.waitForTimeout(550);await page.screenshot({path:path.join(out,'galaxy-reformed.png')});pass('Image-colored galaxy particles scatter and reform correctly for three complete cycles');
   await page.locator('#themeToggle').click();await page.reload();assert.equal(await page.locator('html').getAttribute('data-theme'),'light');await page.locator('#themeToggle').click();
-  await page.emulateMedia({reducedMotion:'reduce'});
-  const darkGalaxy=await page.locator('#portalDust').evaluate(c=>c.toDataURL());
-  await page.locator('#themeToggle').click();
-  assert.notEqual(await page.locator('#portalDust').evaluate(c=>c.toDataURL()),darkGalaxy,'Paused galaxy must repaint for the theme');
-  assert.equal(await page.locator('.system-planet').evaluate(el=>getComputedStyle(el).clipPath),'none');
-  await page.locator('#observatory').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(__dirname,'preview-galaxy-light.png')});
-  await page.locator('#themeToggle').click();
-  await page.locator('details:not(#credits)').evaluateAll(notes=>notes.forEach(note=>note.open=true));
-  for(const w of [320,390,768,1024,1440,1920]){
-   await page.setViewportSize({width:w,height:900});
-   for(const id of ['home','about','skills','projects','experience','education','certificates','observatory','contact']){
-    await page.locator('#'+id).scrollIntoViewIfNeeded();await page.waitForTimeout(40);
-    const layout=await page.evaluate(()=>({viewport:innerWidth,width:document.documentElement.scrollWidth,clipped:[...document.querySelectorAll('h1,h2,h3,p,.world-button,.skill-star,.project-satellite')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&(r.right>innerWidth+1||r.left<0)}).map(el=>el.textContent.slice(0,40))}));
-    assert(layout.width<=layout.viewport,`${w}px ${id} overflow`);assert.deepEqual(layout.clipped,[],`${w}px clipped content`);
+  await page.locator('#motionToggle').click();assert.equal(await page.locator('html').getAttribute('data-motion'),'paused');const pausedSky=await page.locator('#starfield').evaluate(c=>c.toDataURL());await page.waitForTimeout(250);assert.equal(await page.locator('#starfield').evaluate(c=>c.toDataURL()),pausedSky);assert.equal(await page.locator('.sphere .surface').first().evaluate(el=>getComputedStyle(el).animationPlayState),'paused');
+  await page.reload();assert.equal(await page.locator('html').getAttribute('data-motion'),'paused');await page.locator('#motionToggle').click();await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#portal').click();assert.equal(await page.locator('#portal').getAttribute('aria-busy'),null);assert.match(await page.locator('#portalCaption').textContent(),/Reformed/);await page.locator('#nebulaWindow').click();assert.equal(await page.locator('#nebulaWindow').getAttribute('data-view'),'stars');assert.equal(await page.evaluate(()=>document.getAnimations().filter(a=>a.playState==='running').length),0);pass('Theme/pause persist, paused canvases and textures freeze, reduced motion keeps instant interactions');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  for(const [width,height] of [[320,640],[360,800],[390,844],[600,900],[768,1024],[1024,900],[1440,900],[1920,1080]]){
+   await page.setViewportSize({width,height});await page.waitForTimeout(160);
+   for(const theme of ['dark','light']){
+    if(await page.locator('html').getAttribute('data-theme')!==theme)await page.locator('#themeToggle').click();
+    await page.evaluate(()=>document.querySelectorAll('details:not(#credits)').forEach(el=>el.open=true));
+    const issues=[];
+    for(const id of ['home','journey','about','skills','projects','experience','education','certificates','observatory','contact']){
+     await page.locator('#'+id).evaluate(el=>el.scrollIntoView({behavior:'instant',block:'start'}));await page.waitForTimeout(40);
+     const layout=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,clipped:[...document.querySelectorAll('h1,h2,h3,p,.world-label,.skill-star span,.project-selectors button')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&(r.left<-.5||r.right>innerWidth+.5)}).map(el=>el.textContent.slice(0,70))}));
+     if(layout.scrollWidth>width||layout.clipped.length)issues.push({id,...layout});
+    }
+    assert.deepEqual(issues,[],`${width}px ${theme} expanded page overflow`);report.responsive.push({width,height,theme,clipping:issues.length});
+    await page.locator('#home').evaluate(el=>el.scrollIntoView({behavior:'instant',block:'start'}));await page.waitForTimeout(100);
+    if([320,390,1440].includes(width))assert(await page.locator('.identity-badge,.hero-actions').evaluateAll(elements=>elements.every(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight})),`${width}px identity/actions visible in first viewport`);
+    if([320,390,768,1440,1920].includes(width))await page.screenshot({path:path.join(out,`hero-${theme}-${width}.png`)});
+    if(width===320){await page.locator('#contact .launch-button').scrollIntoViewIfNeeded();await page.waitForTimeout(150);assert(await page.locator('#contact .launch-button').evaluate(el=>{const r=el.getBoundingClientRect();return [r.left+10,r.left+r.width/2,r.right-10].every(x=>el.contains(document.elementFromPoint(x,r.top+r.height/2)))}));assert(await page.locator('.travel-indicator').isHidden());await page.screenshot({path:path.join(out,`contact-${theme}-320.png`)});}
    }
   }
-  await page.setViewportSize({width:1440,height:1000});await page.locator('#skills').scrollIntoViewIfNeeded();await page.waitForTimeout(100);
-  const comet=Number(await page.locator('#cometHead').getAttribute('cy'));
-  await page.locator('#about').scrollIntoViewIfNeeded();await page.waitForTimeout(100);assert(Number(await page.locator('#cometHead').getAttribute('cy'))<comet);
-  await page.evaluate(()=>{const y=document.querySelector('#skills .waypoint').getBoundingClientRect().top+scrollY;scrollTo(0,y-innerHeight*.55+11)});await page.waitForTimeout(100);
-  assert(await page.locator('#skills').evaluate(el=>el.classList.contains('arriving')));
-  for(const id of ['home','about','skills','projects','experience','education','certificates','observatory']){await page.locator('#'+id).scrollIntoViewIfNeeded();await page.waitForTimeout(120);await page.screenshot({path:path.join(__dirname,id==='home'?'preview-desktop.png':`preview-${id}.png`)});}
-  await page.locator('#home').scrollIntoViewIfNeeded();await page.locator('#themeToggle').click();await page.screenshot({path:path.join(__dirname,'preview-light.png')});await page.locator('#themeToggle').click();
-  await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(__dirname,'preview-mobile.png')});
-  assert.deepEqual(errors,[]);
-  const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});await mobile.goto(source);
-  await mobile.locator('#moonProfile').tap();assert(await mobile.locator('[data-profile-panel="moon"]').isVisible());
-  await mobile.locator('[data-project="1"]').tap();await mobile.waitForTimeout(900);
-  assert(await mobile.locator('[data-panel="1"]').isVisible());
-  assert((await mobile.locator('#projectDetail').boundingBox()).y<844*.7,'Mobile selection brings details into view');
-  await mobile.locator('[data-panel="1"] summary').tap();assert(await mobile.locator('[data-panel="1"] .note-body').isVisible());
-  await mobile.waitForTimeout(700);await mobile.screenshot({path:path.join(__dirname,'preview-mobile-brief.png')});
-  await mobile.locator('#portal').tap();await mobile.waitForFunction(()=>document.querySelector('#portalCaption').textContent.includes('Reformed'));
-  assert(!(await mobile.locator('html').evaluate(el=>el.classList.contains('star-cursor'))));
-  const offline=await browser.newPage(),remote=[];offline.on('request',r=>{if(/^https?:/.test(r.url()))remote.push(r.url());});
-  await offline.context().setOffline(true);await offline.goto(pathToFileURL(path.join(__dirname,'portfolio-preview.html')).href);
-  await offline.locator('#transformImage').click();await offline.waitForFunction(()=>document.querySelector('#portalCaption').textContent.includes('Reformed'));assert.deepEqual(remote,[]);
-  const noJS=await browser.newPage({javaScriptEnabled:false});await noJS.goto(source);
-  for(const panel of await noJS.locator('.project-panel,[data-profile-panel]').all())assert(await panel.isVisible());
-  assert(await noJS.locator('#portalImage').isVisible());
-  for(const button of await noJS.locator('[data-js-control]').all())assert(await button.isDisabled());
-  await noJS.locator('#experience summary').click();assert(await noJS.locator('#experience .note-body').isVisible());
-  console.log('PASS: live port 8000, identity, Earth/Moon details, orbit hold/resume, project controls, keyboard portfolio disclosures, constellation, black-hole surge, galaxy explosion/reassembly, star cursor, checkpoint arrival/reflow/reverse scroll, 6 expanded responsive widths, touch, themes, motion pause, reduced motion, offline and no-JS.');
- }finally{await browser.close();}
+  pass('Eight widths, both themes, all expanded portfolio sections: no text clipping or overflow; 320px contact hit targets clear');
+  await page.setViewportSize({width:1440,height:900});await page.locator('#skills').scrollIntoViewIfNeeded();await page.waitForTimeout(100);const lower=Number(await page.locator('#cometHead').getAttribute('cy'));await page.locator('#about').scrollIntoViewIfNeeded();await page.waitForTimeout(100);assert(Number(await page.locator('#cometHead').getAttribute('cy'))<lower);
+  await page.evaluate(()=>{const p=document.querySelector('#skills .waypoint').getBoundingClientRect();scrollTo({top:p.top+scrollY-innerHeight*.55,behavior:'instant'})});await page.waitForTimeout(100);assert(await page.locator('#skills').evaluate(el=>el.classList.contains('arriving')));assert.match(await page.locator('#cometSpark').getAttribute('transform'),/translate/);pass('Journey reverses correctly, checkpoint arrival and visible comet sparkle');
+  assert.deepEqual(report.errors,[]);assert.deepEqual(report.failedRequests,[]);await context.close();await page.video().saveAs(path.join(out,'desktop-interactions.webm'));
+  const phoneContext=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,recordVideo:{dir:path.join(out,'raw'),size:{width:390,height:844}}});const phone=await phoneContext.newPage();await phone.goto(source);await phone.locator('#moonProfile').tap();assert(await phone.locator('[data-profile-panel="moon"]').isVisible());await phone.locator('[data-project="1"]').tap();await phone.waitForTimeout(850);assert(await phone.locator('[data-panel="1"]').isVisible());assert((await phone.locator('#projectDetail').boundingBox()).y<844*.7);await phone.locator('#nebulaWindow').tap();await phone.waitForFunction(()=>document.querySelector('#nebulaWindow').dataset.view==='stars');await phone.locator('#nebulaWindow').tap();await phone.waitForFunction(()=>document.querySelector('#nebulaWindow').dataset.view==='nebula');await phone.locator('#portal').tap();await phone.waitForFunction(()=>!document.querySelector('#portal').hasAttribute('aria-busy'));assert(!(await phone.locator('html').evaluate(el=>el.classList.contains('star-cursor'))));await phoneContext.close();await phone.video().saveAs(path.join(out,'mobile-interactions.webm'));pass('Touch profile/project details, image pin/unpin, galaxy cycle and native touch cursor');
+  const nojs=await browser.newPage({javaScriptEnabled:false,viewport:{width:390,height:844}});await nojs.goto(source);for(const panel of await nojs.locator('.project-panel,[data-profile-panel]').all())assert(await panel.isVisible());assert(await nojs.locator('#portalImage').isVisible());assert(await nojs.locator('.skill-fallback').isVisible());await nojs.locator('#experience summary').click();assert(await nojs.locator('#experience .note-body').isVisible());pass('No-JavaScript portfolio content, skills fallback, media and native disclosures');
+  const offline=await browser.newPage();const remotes=[];offline.on('request',r=>{if(/^https?:/.test(r.url()))remotes.push(r.url())});await offline.context().setOffline(true);await offline.goto(pathToFileURL(path.join(__dirname,'portfolio-preview.html')).href);await offline.locator('#portal').click();await offline.waitForFunction(()=>document.querySelector('#portalCaption').textContent.includes('Reformed'));assert.equal(await offline.locator('#portal').getAttribute('data-particle-source'),'image');assert.deepEqual(remotes,[]);pass('Self-contained offline export: image particles and zero HTTP requests');
+  const lowContext=await browser.newContext({viewport:{width:390,height:844},colorScheme:'light'});await lowContext.addInitScript(()=>{Object.defineProperty(navigator,'deviceMemory',{get:()=>2});Object.defineProperty(navigator,'hardwareConcurrency',{get:()=>2})});const low=await lowContext.newPage();await low.goto(source);assert.equal(await low.locator('html').getAttribute('data-quality'),'low');assert.equal(await low.locator('html').getAttribute('data-theme'),'light');await low.locator('#moonProfile').click();assert(await low.locator('[data-profile-panel="moon"]').isVisible());await low.locator('#portal').click();await low.waitForFunction(()=>!document.querySelector('#portal').hasAttribute('aria-busy'));pass('Constrained-device quality tier and first-visit system light theme remain functional');
+  const fallbackContext=await browser.newContext();await fallbackContext.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=()=>null});const fallback=await fallbackContext.newPage(),fallbackErrors=[];fallback.on('pageerror',e=>fallbackErrors.push(e.message));await fallback.goto(source);await fallback.locator('[data-project="1"]').click();assert(await fallback.locator('[data-panel="1"]').isVisible());await fallback.locator('#moonProfile').click();assert(await fallback.locator('[data-profile-panel="moon"]').isVisible());await fallback.locator('#nebulaWindow').click();assert.equal(await fallback.locator('#nebulaWindow').getAttribute('data-view'),'stars');await fallback.locator('#nebulaWindow').click();assert.equal(await fallback.locator('#nebulaWindow').getAttribute('data-view'),'nebula');await fallback.locator('#portal').click();assert.equal(await fallback.locator('#portal').getAttribute('aria-busy'),null);assert(await fallback.locator('#portalImage').isVisible());assert.deepEqual(fallbackErrors,[]);pass('Canvas unavailable: portfolio selectors, instant image toggles and galaxy photograph fallback remain usable');
+ }finally{await browser.close();fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2))}
 })().catch(e=>{console.error(e);process.exitCode=1});

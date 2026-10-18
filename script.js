@@ -5,6 +5,7 @@
   const $ = id => document.getElementById(id);
   document.querySelectorAll('[data-js-control]').forEach(button => { button.disabled = false; });
   const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
+  const SURGE_DURATION=1000;
   const read = key => { try { return localStorage.getItem(key); } catch { return null; } };
   const save = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
   const media = matchMedia('(prefers-reduced-motion: reduce)');
@@ -23,16 +24,25 @@
     $('themeToggle').setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
     document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#07090e' : '#e7eaf1';
   }
-  setTheme(read('portfolio-theme') === 'light' ? 'light' : 'dark');
+  const colorPreference=matchMedia('(prefers-color-scheme: light)');
+  setTheme(read('portfolio-theme') || (colorPreference.matches?'light':'dark'));
+  colorPreference.addEventListener('change',()=>{if(!read('portfolio-theme')){setTheme(colorPreference.matches?'light':'dark');paintStars();paintGalaxy();}});
   $('themeToggle').addEventListener('click', () => {
     setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
     save('portfolio-theme', root.dataset.theme);
     paintStars();paintGalaxy();
   });
 
-  // Native dialogs provide focus trapping, Escape handling, and focus restoration.
-  for (const id of ['mapToggle', 'quickMap']) $(id).addEventListener('click', () => $('starMap').showModal());
+  // Keep Tab in the page's modal sequence as well as native Escape restoration.
+  for (const id of ['mapToggle', 'quickMap']) $(id).addEventListener('click', () => { $('starMap').showModal();$(id).setAttribute('aria-expanded','true'); });
   document.querySelectorAll('dialog').forEach(dialog => {
+    dialog.addEventListener('close',()=>{for(const id of ['mapToggle','quickMap'])$(id).setAttribute('aria-expanded','false');});
+    dialog.addEventListener('keydown',event=>{
+      if(event.key!=='Tab')return;
+      const controls=dialog.querySelectorAll('button,a[href]'),first=controls[0],last=controls[controls.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+    });
     dialog.querySelector('.close-dialog').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', event => {
       if (event.target === dialog) {
@@ -48,9 +58,9 @@
     }));
   });
 
-  function reveal(element) {
+  function reveal(element, duration=650) {
     element.getAnimations().forEach(animation => animation.cancel());
-    if (!still()) element.animate([{opacity:.1,transform:'translateY(18px)',filter:'blur(5px)'},{opacity:1,transform:'none',filter:'blur(0)'}],{duration:650,easing:'cubic-bezier(.16,1,.3,1)'});
+    if (!still()) element.animate([{opacity:.65,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration,easing:'cubic-bezier(.16,1,.3,1)'});
   }
   document.querySelectorAll('details').forEach(details => details.addEventListener('toggle', () => {
     const body=details.querySelector('.note-body');
@@ -64,6 +74,7 @@
   }
   const profileButtons = [$('earthProfile'), $('moonProfile')];
   function selectProfile(kind) {
+    document.querySelector('.home-system').dataset.profile=kind;
     document.querySelectorAll('[data-profile-panel]').forEach(panel => { panel.hidden = panel.dataset.profilePanel !== kind; });
     profileButtons.forEach(button => {
       const active = button.id === `${kind}Profile`;
@@ -76,6 +87,7 @@
     selectProfile(button.id.startsWith('earth')?'earth':'moon');
     showSelectedDetails($('profileDetails'));
   }));
+  document.querySelectorAll('[data-body-profile]').forEach(button=>button.addEventListener('click',()=>{selectProfile(button.dataset.bodyProfile);showSelectedDetails($('profileDetails'));}));
   selectProfile('earth');
 
   const skillData = [
@@ -85,16 +97,26 @@
     ['Systems thinking', 'Connecting components into useful systems, with attention to behavior and real-world constraints.'],
     ['Creative prototyping', 'Making an idea tangible, testing the experience, and learning from what happens next.']
   ];
-  document.querySelectorAll('[data-skill]').forEach(button => button.addEventListener('click', () => {
+  function selectSkill(button) {
+    const constellation=document.querySelector('.constellation');
+    if(constellation.dataset.activeSkill===button.dataset.skill&&$('skillTitle').textContent===skillData[Number(button.dataset.skill)][0])return;
     const [title, description] = skillData[Number(button.dataset.skill)];
     $('skillTitle').textContent = title;
     $('skillDescription').textContent = description;
-    reveal(document.querySelector('.skill-readout'));
+    reveal(document.querySelector('.skill-readout'),220);
     document.querySelectorAll('[data-skill]').forEach(star => {
       star.classList.toggle('selected', star === button);
       star.setAttribute('aria-pressed', String(star === button));
     });
-  }));
+    constellation.dataset.activeSkill=button.dataset.skill;
+    const edges=['M80 150 L245 75 M80 150 L115 300','M80 150 L245 75 L405 170 M245 75 L325 310','M245 75 L405 170 L325 310','M405 170 L325 310 L115 300 M325 310 L245 75','M80 150 L115 300 L325 310'];
+    $('skillConnection').setAttribute('d',edges[Number(button.dataset.skill)]);
+  }
+  document.querySelectorAll('[data-skill]').forEach(button=>{
+    button.addEventListener('click',()=>selectSkill(button));
+    button.addEventListener('focus',()=>selectSkill(button));
+    button.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')selectSkill(button);});
+  });
 
   let project = 0;
   const projectButtons = [...document.querySelectorAll('[data-project]')];
@@ -107,21 +129,28 @@
       button.setAttribute('aria-pressed', String(i === project));
     });
     $('projectCount').textContent = `${String(project + 1).padStart(2, '0')} / ${String(panels.length).padStart(2, '0')}`;
+    document.querySelector('.solar-system').dataset.selected=String(project);
+    $('projects').dataset.selected=String(project);
+    $('worldCaption').textContent=project?'THE SIGNAL WORLD / ADAPTIVE TRAFFIC':'THE ARCHIVE WORLD / KNOWLEDGE ENGINE';
+    document.querySelectorAll('[data-world]').forEach(world=>world.classList.toggle('selected',Number(world.dataset.world)===project));
     reveal(panels[project]);
   }
   projectButtons.forEach(button => button.addEventListener('click', () => {
     selectProject(Number(button.dataset.project));
     showSelectedDetails($('projectDetail'));
   }));
+  document.querySelectorAll('[data-world]').forEach(world=>world.addEventListener('click',()=>{selectProject(Number(world.dataset.world));showSelectedDetails($('projectDetail'));}));
   $('previousProject').addEventListener('click', () => selectProject(project - 1));
   $('nextProject').addEventListener('click', () => selectProject(project + 1));
   selectProject(0);
+  function selectHash(){const match=location.hash.match(/^#project-(0|1)$/);if(match){selectProject(Number(match[1]));$('projects').scrollIntoView({behavior:'instant',block:'start'});}}
+  window.addEventListener('hashchange',selectHash);
 
   // The trail follows the measured chapter waypoints, including after responsive reflow.
   const expedition = $('expedition');
-  const stations = [...document.querySelectorAll('.station')];
+  const stations = [...document.querySelectorAll('.station,#observatory,#contact')];
   const path = $('flightActive');
-  let pathLength = 0, expeditionTop = 0, expeditionHeight = 0, chapterPositions = [], frameQueued = false;
+  let pathLength = 0, expeditionTop = 0, expeditionHeight = 0, chapterPositions = [], chapterProgress=[], frameQueued = false, previousCometLength=0, cometDirection=1, lastArrival=-1, arrivalTimer;
   const destinations = [
     ['home','Departure'], ['journey','Flight plan'], ['about','Origin'], ['skills','Toolkit'],
     ['projects','Experiments'], ['experience','Experience'], ['education','Learning'],
@@ -131,38 +160,50 @@
   function measure() {
     const box = expedition.getBoundingClientRect();
     expeditionTop = box.top + scrollY;
-    const width = expedition.clientWidth, height = expedition.offsetHeight;
+    const width = expedition.clientWidth, height = $('contact').getBoundingClientRect().bottom-box.top;
     expeditionHeight = height;
     const points = stations.map(station => {
       const rect = station.querySelector('.waypoint').getBoundingClientRect();
       return {x:rect.left - box.left + rect.width / 2, y:rect.top - box.top + rect.height / 2};
     });
-    destinationPositions = destinations.map(([id, name]) => ({id,name,top:$(id).getBoundingClientRect().top + scrollY}));
+    destinationPositions = destinations.map(([id, name]) => {
+      const stop=$(id).querySelector('.waypoint'),rect=(stop||$(id)).getBoundingClientRect();
+      return {id,name,top:rect.top+scrollY+(stop?rect.height/2:0)};
+    });
     $('flightSvg').setAttribute('viewBox', `0 0 ${width} ${height}`);
+    $('flightSvg').style.height=`${height}px`;
     chapterPositions = points.map(point => point.y);
-    points.unshift({x:points[0].x,y:0});
-    points.push({x:points[points.length-1].x,y:height});
-    let d = `M ${points[0].x} 0`;
-    points.slice(1).forEach((point, i) => {
-      const previous = points[i];
-      const delta = point.y - previous.y;
-      const bend = width < 600 ? 0 : (i % 2 ? -1 : 1) * Math.min(width * .17, delta * .3);
-      d += ` C ${previous.x + bend} ${previous.y + delta * .35}, ${point.x - bend} ${point.y - delta * .35}, ${point.x} ${point.y}`;
+    let d = `M ${points[0].x} 0 L ${points[0].x} ${points[0].y}`;
+    points.forEach((point,i)=>{
+      const next=points[i+1]||{x:point.x,y:height},delta=next.y-point.y;
+      const lane=width<700?point.x+(i%2?4:-4):(point.x>width*.5?width*.95:width*.045);
+      // Cross the clear inter-chapter band; keep the reading area's middle unobstructed.
+      const approach=Math.min(110,delta*.22);
+      d+=` C ${point.x} ${point.y+delta*.18}, ${lane} ${point.y+delta*.18}, ${lane} ${point.y+delta*.4}`;
+      d+=` C ${lane} ${next.y-approach}, ${next.x} ${next.y-approach}, ${next.x} ${next.y}`;
     });
     path.setAttribute('d', d);
     $('flightGhost').setAttribute('d', d);
     pathLength = path.getTotalLength();
+    chapterProgress=chapterPositions.map(y=>distanceAtY(y)/pathLength);
     path.style.strokeDasharray = String(pathLength);
     queueScroll();
+  }
+  function distanceAtY(y){
+    let low=0,high=pathLength;
+    for(let i=0;i<15;i++){const middle=(low+high)/2;if(path.getPointAtLength(middle).y<y)low=middle;else high=middle;}
+    return (low+high)/2;
   }
   function renderScroll() {
     frameQueued = false;
     const y = scrollY;
+    if(!still())$('deepSky').style.transform=`translate3d(0,${-Math.min(70,y*.006)}px,0)`;
     $('pageProgress').style.transform = `scaleX(${clamp(y / Math.max(1, root.scrollHeight - innerHeight))})`;
     document.querySelector('.navigation').classList.toggle('scrolled', y > 50);
-    const current = destinationPositions.filter(item => item.top < y + innerHeight * .45).pop() || destinationPositions[0];
+    const current = destinationPositions.filter(item => item.top <= y + innerHeight * .55).pop() || destinationPositions[0];
     if (current) {
       $('currentDestination').textContent = current.name;
+      document.querySelector('.travel-indicator').hidden=current.id==='contact'||current.id==='home';
       document.querySelectorAll('.navigation nav a').forEach(link => {
         const section = ['about','skills','experience','education','certificates'].includes(current.id) ? 'journey' : current.id;
         if (link.hash === `#${section}`) link.setAttribute('aria-current', 'location');
@@ -172,32 +213,39 @@
     if (!pathLength) return;
     const targetY = clamp(y + innerHeight * .55 - expeditionTop, 0, expeditionHeight);
     // The curve's Y is monotonic. Binary search keeps the comet at the reader's height.
-    let low = 0, high = pathLength;
-    for (let i = 0; i < 12; i++) {
-      const middle = (low + high) / 2;
-      if (path.getPointAtLength(middle).y < targetY) low = middle; else high = middle;
-    }
-    const length = (low + high) / 2;
+    const length=distanceAtY(targetY),progress=length/pathLength;
+    expedition.dataset.routeProgress=progress.toFixed(6);
     path.style.strokeDashoffset = String(pathLength - length);
     const head = path.getPointAtLength(length);
     $('cometHead').setAttribute('cx', head.x);
     $('cometHead').setAttribute('cy', head.y);
+    $('cometSpark').setAttribute('transform',`translate(${head.x} ${head.y})`);
+    if(Math.abs(length-previousCometLength)>.5)cometDirection=length<previousCometLength?-1:1;
+    const direction=cometDirection;
+    previousCometLength=length;
     let tail = '';
     for (let i = 0; i <= 14; i++) {
-      const point = path.getPointAtLength(Math.max(0, length - 160 + i * 160 / 14));
+      const point = path.getPointAtLength(clamp(length-direction*(160-i*160/14),0,pathLength));
       tail += `${i ? ' L' : 'M'} ${point.x} ${point.y}`;
     }
     $('cometTail').setAttribute('d', still() ? '' : tail);
-    const currentChapter = Math.max(0, chapterPositions.findLastIndex(top => top <= targetY));
+    const currentChapter = chapterProgress.findLastIndex(stop => stop <= progress+2/pathLength);
+    const arrival=chapterProgress.findIndex(stop=>Math.abs(stop-progress)*pathLength<36);
+    if(arrival>=0&&arrival!==lastArrival){
+      clearTimeout(arrivalTimer);stations.forEach(station=>station.classList.remove('arrival-flash'));
+      stations[arrival].classList.add('arrival-flash');arrivalTimer=setTimeout(()=>stations[arrival].classList.remove('arrival-flash'),900);
+    }
+    lastArrival=arrival;
     stations.forEach((station, i) => {
       station.classList.toggle('current', i === currentChapter);
-      station.classList.toggle('reached', targetY >= chapterPositions[i] - 35);
-      station.classList.toggle('arriving', Math.abs(targetY - chapterPositions[i]) < 85);
+      station.classList.toggle('reached', progress >= chapterProgress[i]-2/pathLength);
+      station.classList.toggle('arriving', i===arrival);
     });
   }
   function queueScroll() { if (!frameQueued) { frameQueued = true; requestAnimationFrame(renderScroll); } }
   window.addEventListener('scroll', queueScroll, {passive:true});
-  new ResizeObserver(measure).observe(expedition);
+  const routeObserver=new ResizeObserver(measure);
+  [expedition,$('observatory'),$('contact')].forEach(section=>routeObserver.observe(section));
   window.addEventListener('resize', measure, {passive:true});
   document.fonts.ready.then(measure);
   window.addEventListener('load', measure);
@@ -206,11 +254,30 @@
   const canvas = $('starfield'), ctx = canvas.getContext('2d');
   const portal = $('portal'), dust = $('portalDust'), dustCtx = dust.getContext('2d');
   const flow = $('blackholeFlow'), flowCtx = flow.getContext('2d');
+  const nebulaWindow=$('nebulaWindow'),nebulaCanvas=$('nebulaDust'),nebulaCtx=nebulaCanvas.getContext('2d');
+  const homeVisual=document.querySelector('.home-visual'),moonWorld=document.querySelector('.moon-world');
   const solar = document.querySelector('.solar-system');
-  let width=0,height=0,galaxyWidth=0,galaxyHeight=0,flowWidth=0,flowHeight=0,solarWidth=0,solarHeight=0;
-  let stars=[],galaxy=[],meteors=[],frame=0,lastTime=0,lastPaint=0,universeTime=0,orbitTime=0,nextMeteor=1200,shower=0;
+  const lowPower=(navigator.deviceMemory||8)<=4||(navigator.hardwareConcurrency||8)<=4||navigator.connection?.saveData===true;
+  root.dataset.quality=lowPower?'low':'standard';
+  let width=0,height=0,galaxyWidth=0,galaxyHeight=0,flowWidth=0,flowHeight=0,solarWidth=0,solarHeight=0,homeWidth=0,homeHeight=0,nebulaWidth=0,nebulaHeight=0;
+  let flowOrigin={x:0,y:0,r:1},flowRect={x:0,y:0,w:1,h:1};
+  let stars=[],galaxy=[],meteors=[],frame=0,lastTime=0,lastPaint=0,lastSkyPaint=0,universeTime=0,orbitTime=0,moonTime=0,nextMeteor=2400,shower=0;
   let pointer={x:0,y:0},camera={x:0,y:0},galaxyBusy=false,galaxyStart=0,galaxyView=0,warpUntil=0;
+  let nebulaValue=0,nebulaFrom=0,nebulaTarget=0,nebulaStart=0,nebulaPinned=false;
   const visible = new Set();
+  const worlds=[...document.querySelectorAll('.home-visual .sphere,.project-world .sphere,.saturn-body .sphere')].map(sphere=>{
+    const image=new Image(),canvas=document.createElement('canvas');canvas.className='world-material';canvas.setAttribute('aria-hidden','true');
+    canvas.width=canvas.height=lowPower?160:320;sphere.append(canvas);
+    image.src=getComputedStyle(sphere.querySelector('.surface')).backgroundImage.slice(5,-2);
+    const world={sphere,image,canvas,context:canvas.getContext('2d'),section:sphere.closest('section')};
+    image.addEventListener('load',()=>paintWorld(world));return world;
+  });
+  function paintWorld(world){
+    const {sphere,image,canvas,context}=world;if(!context)return;
+    context.clearRect(0,0,canvas.width,canvas.height);
+    const rendered=window.OrbitMaterials?.draw(context,image,universeTime,0,canvas.width,canvas.height,0,lowPower);
+    sphere.classList.toggle('material-ready',Boolean(rendered));
+  }
   const sceneObserver = new IntersectionObserver(entries=>entries.forEach(entry=>{
     entry.target.classList.toggle('offscreen',!entry.isIntersecting);
     if(entry.isIntersecting) visible.add(entry.target); else visible.delete(entry.target);
@@ -224,28 +291,99 @@
   function fitCanvas(element,w,h,density=1) {
     const context=element.getContext('2d');
     if(!context) return;
-    element.width=Math.round(w*density);element.height=Math.round(h*density);
-    context.setTransform(density,0,0,density,0,0);
+    const cw=Math.round(w*density),ch=Math.round(h*density);
+    if(element.width!==cw||element.height!==ch){element.width=cw;element.height=ch;}
+    context.setTransform(cw/w,0,0,ch/h,0,0);
   }
   function resizeScenes() {
     width=innerWidth;height=innerHeight;
-    fitCanvas(canvas,width,height,Math.min(devicePixelRatio||1,1.5));
     const box=portal.getBoundingClientRect();galaxyWidth=box.width;galaxyHeight=box.height;
-    fitCanvas(dust,galaxyWidth,galaxyHeight,Math.min(devicePixelRatio||1,1.5));
     const hero=document.querySelector('.hero-media').getBoundingClientRect();flowWidth=hero.width;flowHeight=hero.height;
-    fitCanvas(flow,flowWidth,flowHeight);
+    const poster=document.querySelector('.hero-media img');
+    const posterBox={width:poster.offsetWidth,height:poster.offsetHeight,left:hero.left+poster.offsetLeft,top:hero.top+poster.offsetTop};
+    const scale=Math.min(posterBox.width/(poster.naturalWidth||1920),posterBox.height/(poster.naturalHeight||1280));
+    const imageWidth=(poster.naturalWidth||1920)*scale,imageHeight=(poster.naturalHeight||1280)*scale;
+    flowOrigin={x:posterBox.left-hero.left+(posterBox.width-imageWidth)/2+imageWidth*.52,y:posterBox.top-hero.top+(posterBox.height-imageHeight)/2+imageHeight*.52,r:imageWidth*.122};
+    flowRect={x:posterBox.left-hero.left+(posterBox.width-imageWidth)/2,y:posterBox.top-hero.top+(posterBox.height-imageHeight)/2,w:imageWidth,h:imageHeight};
     solarWidth=solar.clientWidth;solarHeight=solar.clientHeight;
+    homeWidth=homeVisual.clientWidth;homeHeight=homeVisual.clientHeight;
+    const nebulaBox=nebulaWindow.getBoundingClientRect();nebulaWidth=nebulaBox.width;nebulaHeight=nebulaBox.height;
+    const density=Math.min(devicePixelRatio||1,lowPower?1:1.5);
+    fitCanvas(canvas,width,height,density);
+    fitCanvas(dust,galaxyWidth,galaxyHeight,density);
+    fitCanvas(flow,flowWidth,flowHeight);
+    fitCanvas(nebulaCanvas,nebulaWidth,nebulaHeight,density);
     fitCanvas($('cursorTrail'),width,height);
     let seed=4107;
     const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-    stars=Array.from({length:width<600?85:180},()=>({x:random()*width,y:random()*height,r:.3+random()*1.1,a:.15+random()*.5,z:.2+random()*.8,phase:random()*6.28}));
-    galaxy=Array.from({length:width<600?1600:3200},(_,i)=>{
+    stars=Array.from({length:lowPower?65:width<600?80:145},()=>({x:random()*width,y:random()*height,r:.3+random()*1.1,a:.15+random()*.5,z:.2+random()*.8,phase:random()*6.28}));
+    galaxy=Array.from({length:lowPower?850:width<600?1200:2200},(_,i)=>{
       const radius=i%4===0?Math.pow(random(),2)*.25:Math.pow(random(),.7),arm=i%2;
-      return {radius,angle:i%7===0?random()*6.28:arm*Math.PI+radius*6+(random()-.5)*(1.1-radius*.4),scatter:random()*6.28,depth:random()-.5,size:.35+random()*1.1,light:random()};
+      const angle=arm*Math.PI+radius*6+(random()-.5)*.5;
+      return {u:Math.cos(angle)*radius*.47,v:Math.sin(angle)*radius*.4,scatter:random()*6.28,size:.8+random()*1.2,light:random(),color:i%3?'#b5b9d3':'#f3d0a2'};
     });
-    paintStars();paintGalaxy();paintFlow();movePlanets();
+    sampleGalaxy();paintStars();paintGalaxy();paintFlow();movePlanets();moveMoon();paintNebula();
     if(width<=600)clearCursor();
   }
+  function sampleGalaxy(){
+    const image=$('portalImage');
+    if(!image.complete||!image.naturalWidth)return;
+    const sample=document.createElement('canvas');sample.width=240;sample.height=Math.round(240*image.naturalHeight/image.naturalWidth);
+    const context=sample.getContext('2d',{willReadFrequently:true});if(!context)return;
+    try{
+      context.drawImage(image,0,0,sample.width,sample.height);
+      const limit=lowPower?650:width<600?1200:2200;
+      const pixels=context.getImageData(0,0,sample.width,sample.height).data,points=[];
+      let seed=90210;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+      for(let attempt=0;attempt<limit*24&&points.length<limit;attempt++){
+        const x=random()*(sample.width-2)+1,y=random()*(sample.height-2)+1;
+        const i=(Math.floor(y)*sample.width+Math.floor(x))*4,light=Math.max(pixels[i],pixels[i+1],pixels[i+2])/255*(pixels[i+3]/255);
+        if(light<.12||random()>Math.sqrt(light))continue;
+        points.push({u:x/sample.width-.5,v:y/sample.height-.5,scatter:random()*Math.PI*2,spread:.4+random()*.6,light,size:.65+random()*.8,color:`rgb(${pixels[i]},${pixels[i+1]},${pixels[i+2]})`});
+      }
+      galaxy=points;
+      portal.dataset.particleSource='image';
+    }catch{
+      // shortcut: file:// can restrict pixel reads; the standalone export embeds data URLs.
+      portal.dataset.particleSource='procedural-fallback';
+    }
+  }
+  function paintNebula(){
+    if(!nebulaCtx||!nebulaWidth)return;
+    const first=$('nebulaImage');
+    if(!first.complete||!first.naturalWidth)return;
+    const progress=still()?1:clamp((universeTime-nebulaStart)/1100);
+    nebulaValue=nebulaFrom+(nebulaTarget-nebulaFrom)*(progress*progress*(3-2*progress));
+    const c=nebulaCtx,w=nebulaWidth,h=nebulaHeight;c.clearRect(0,0,w,h);
+    const scale=Math.min(w/first.naturalWidth,h/first.naturalHeight),iw=first.naturalWidth*scale,ih=first.naturalHeight*scale;
+    c.drawImage(first,(w-iw)/2,(h-ih)/2,iw,ih);
+    c.globalCompositeOperation='lighter';
+    for(let i=0;i<6;i++){
+      const birth=clamp(nebulaValue*1.6-i*.12),angle=i*2.39996;
+      const x=w*(.5+Math.cos(angle)*(.1+i*.025)),y=h*(.5+Math.sin(angle)*(.1+i*.025));
+      const glow=c.createRadialGradient(x,y,0,x,y,w*.065);glow.addColorStop(0,'#ffe6b9b0');glow.addColorStop(1,'#ffe6b900');
+      c.globalAlpha=birth*.7;c.fillStyle=glow;c.fillRect(x-w*.065,y-w*.065,w*.13,w*.13);
+      c.globalAlpha=birth;c.fillStyle='#fff4da';c.beginPath();c.arc(x,y,1.4+birth,0,Math.PI*2);c.fill();
+      c.strokeStyle='#fff0d0';c.lineWidth=.8;c.beginPath();c.moveTo(x-8*birth,y);c.lineTo(x+8*birth,y);c.moveTo(x,y-11*birth);c.lineTo(x,y+11*birth);c.stroke();
+    }
+    c.globalCompositeOperation='source-over';
+    c.globalAlpha=1;nebulaWindow.classList.add('transition-ready');
+    nebulaWindow.dataset.view=progress===1?(nebulaTarget?'stars':'nebula'):'transition';
+  }
+  function setNebulaView(value){
+    if(value===nebulaTarget){paintNebula();return;}
+    nebulaFrom=nebulaValue;nebulaTarget=value;nebulaStart=universeTime;
+    nebulaWindow.setAttribute('aria-pressed',String(value===1));
+    if(!nebulaCtx){nebulaValue=value;nebulaWindow.dataset.view=value?'stars':'nebula';return;}
+    paintNebula();
+  }
+  nebulaWindow.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')setNebulaView(1);});
+  nebulaWindow.addEventListener('pointerleave',()=>{if(!nebulaPinned)setNebulaView(0);});
+  nebulaWindow.addEventListener('focus',()=>setNebulaView(1));
+  nebulaWindow.addEventListener('blur',()=>{if(!nebulaPinned)setNebulaView(0);});
+  nebulaWindow.addEventListener('click',()=>{nebulaPinned=!nebulaPinned;setNebulaView(nebulaPinned?1:0);});
+  $('nebulaImage').addEventListener('load',paintNebula);
+  $('portalImage').addEventListener('load',()=>{sampleGalaxy();paintGalaxy();});
   function paintStars() {
     if(!ctx)return;
     ctx.clearRect(0,0,width,height);
@@ -264,14 +402,16 @@
     }
     for(const meteor of meteors){
       const age=(universeTime-meteor.start)/1700;if(age<0||age>1)continue;
-      const x=meteor.x+age*width*.48,y=meteor.y+age*height*.45,len=meteor.length;
-      const gradient=ctx.createLinearGradient(x-len,y-len*.6,x,y);
-      gradient.addColorStop(0,'transparent');gradient.addColorStop(1,light?'#7d6648':'#edddbd');
-      ctx.globalAlpha=Math.sin(age*Math.PI)*.5;ctx.strokeStyle=gradient;ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.moveTo(x-len,y-len*.6);ctx.lineTo(x,y);ctx.stroke();
+      const vx=meteor.vx,vy=meteor.vy,x=meteor.x+age*vx,y=meteor.y+age*vy,len=meteor.length;
+      const distance=Math.hypot(vx,vy),tx=vx/distance*len,ty=vy/distance*len;
+      const gradient=ctx.createLinearGradient(x-tx,y-ty,x,y);
+      gradient.addColorStop(0,'transparent');gradient.addColorStop(.65,light?'#8d765a':'#8eacc6');gradient.addColorStop(1,light?'#7d6648':'#fff1d2');
+      ctx.globalAlpha=Math.sin(age*Math.PI)*.85;ctx.strokeStyle=gradient;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x-tx,y-ty);ctx.lineTo(x,y);ctx.stroke();
+      ctx.globalAlpha=Math.sin(age*Math.PI);ctx.fillStyle=light?'#79522d':'#fff5df';ctx.shadowColor=light?'#79522d':'#d4e9ff';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(x,y,2.3,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
     }
     if(warpUntil>universeTime){
-      const force=Math.sin((1-(warpUntil-universeTime)/2800)*Math.PI);
+      const force=Math.sin((1-(warpUntil-universeTime)/SURGE_DURATION)*Math.PI);
       ctx.strokeStyle=light?'#8b633e':'#edc99a';ctx.globalAlpha=force*.38;
       stars.slice(0,70).forEach(star=>{const dx=star.x-width*.7,dy=star.y-height*.5;ctx.beginPath();ctx.moveTo(star.x,star.y);ctx.lineTo(star.x+dx*.11*force,star.y+dy*.11*force);ctx.stroke();});
     }
@@ -281,93 +421,115 @@
     if(!flowCtx)return;
     const c=flowCtx,w=flowWidth,h=flowHeight;
     c.clearRect(0,0,w,h);
-    const mobile=w<600,cx=w*(mobile?.61:.71),cy=h*(mobile?.7:.55),r=w*(mobile?.3:.17);
-    c.save();c.translate(cx,cy);c.rotate(-.17);
-    for(let i=0;i<120;i++){
-      const angle=i*2.39996+universeTime*.00012*(1+i%3*.2),radius=r*(1.04+(i%17)/23);
-      const x=Math.cos(angle)*radius*1.8,y=Math.sin(angle)*radius*.3;
-      // Back-side fragments disappear behind the event horizon.
-      if(y<0&&Math.abs(x)<r*.82)continue;
-      c.globalAlpha=.2+(i%5)*.08;c.strokeStyle=i%3?'#f5c286':'#fff3d7';c.lineWidth=.6+(i%3)*.35;
-      c.beginPath();c.ellipse(0,0,radius*1.8,radius*.3,0,angle,angle+.035);c.stroke();
+    const {x:cx,y:cy,r}=flowOrigin;
+    const surge=warpUntil>universeTime?Math.sin((warpUntil-universeTime)/SURGE_DURATION*Math.PI):0;
+    c.save();c.translate(flowRect.x,flowRect.y);
+    const material=window.OrbitMaterials?.draw(c,document.querySelector('.hero-media img'),universeTime,1,flowRect.w,flowRect.h,surge,lowPower);
+    c.restore();document.querySelector('.hero-media').classList.toggle('material-ready',Boolean(material));
+    flow.dataset.renderer=material?'shader':'canvas-fallback';if(material)return;
+    c.save();c.translate(cx+camera.x*.16,cy+camera.y*.1);c.rotate(-.23);
+    c.globalCompositeOperation='screen';
+    for(let i=0;i<(lowPower?55:100);i++){
+      const angle=i*2.39996+universeTime*.0002*(1+i%3*.15),radius=r*(1.02+(i%19)/18);
+      const x=Math.cos(angle)*radius*2,y=Math.sin(angle)*radius*.24;
+      if(y<0&&Math.abs(x)<r*.85)continue;
+      c.globalAlpha=(.15+(i%4)*.055)*(1+surge);c.strokeStyle=i%3?'#deb07a':'#fff1d0';c.lineWidth=.7+i%3*.3;
+      c.beginPath();c.ellipse(0,0,radius*2,radius*.24,0,angle,angle+.025+surge*.02);c.stroke();
+    }
+    for(let i=0;i<22;i++){
+      const angle=(i*.28+universeTime*.00013)%Math.PI;
+      c.globalAlpha=.15+surge*.25;c.strokeStyle='#ffe1af';c.lineWidth=.8;
+      c.beginPath();c.ellipse(0,-r*.03,r*(1.01+i%3*.025),r*(1.01+i%3*.025),0,Math.PI+angle,Math.PI+angle+.045);c.stroke();
     }
     c.restore();c.globalAlpha=1;
   }
   function movePlanets(){
-    if(solar.matches(':hover, :focus-within'))return;
-    projectButtons.forEach((button,i)=>{
-      const angle=orbitTime*.000045+Math.PI*(i+.85),tilt=-.35;
-      const x=Math.cos(angle)*solarWidth*.35,y=Math.sin(angle)*solarHeight*.25;
-      button.style.setProperty('--orbit-x',`${x*Math.cos(tilt)-y*Math.sin(tilt)}px`);
-      button.style.setProperty('--orbit-y',`${x*Math.sin(tilt)+y*Math.cos(tilt)}px`);
-    });
+    if(solar.matches(':hover'))return;
+    const angle=orbitTime*.000055,x=Math.cos(angle)*solarWidth*.46,y=Math.sin(angle)*solarHeight*.2;
+    document.querySelector('.orbit-probe').style.transform=`translate(${x}px,${y}px)`;
+  }
+  function moveMoon(){
+    if(moonWorld.matches(':hover'))return;
+    const angle=moonTime*.00024-.9,tilt=-17*Math.PI/180,ox=Math.cos(angle)*homeWidth*.39,oy=Math.sin(angle)*homeHeight*.22;
+    const x=ox*Math.cos(tilt)-oy*Math.sin(tilt),y=ox*Math.sin(tilt)+oy*Math.cos(tilt),depth=Math.sin(angle);
+    moonWorld.style.transform=`translate(calc(-50% + ${x}px),calc(-50% + ${y}px)) scale(${.88+depth*.12})`;
+    moonWorld.style.zIndex=depth>0?'3':'1';
   }
   function paintGalaxy(){
     if(!dustCtx||!galaxyWidth)return;
     const c=dustCtx,w=galaxyWidth,h=galaxyHeight;
     c.clearRect(0,0,w,h);
     const progress=galaxyBusy?clamp((universeTime-galaxyStart)/3200):0;
-    const blend=progress*progress*(3-2*progress);
-    const view=galaxyView+(galaxyBusy?(1-2*galaxyView)*blend:0);
     const light=root.dataset.theme==='light';
-    const from=light?[61,83,128]:[174,190,255],to=light?[126,67,109]:[223,173,206];
-    const armColor=`rgb(${from.map((value,i)=>Math.round(value+(to[i]-value)*view)).join(',')})`;
-    const blast=galaxyBusy?Math.pow(Math.sin(progress*Math.PI),.7):0;
-    c.save();c.translate(w/2,h/2);c.rotate(-.35);
-    const glow=c.createRadialGradient(0,0,0,0,0,w*.3);
-    glow.addColorStop(0,`rgba(${light?'148,100,48':'255,224,176'},${.6*(1-blast)})`);glow.addColorStop(.22,`rgba(${light?'129,103,78':'229,191,148'},${.23*(1-blast)})`);glow.addColorStop(1,'transparent');
-    c.fillStyle=glow;c.fillRect(-w/2,-h/2,w,h);
-    const turn=universeTime*.000025+view*.7;
-    for(const star of galaxy){
-      const angle=star.angle+turn,radius=star.radius*w*.43;
-      const offset=blast*w*(.12+star.light*.32);
-      const x=Math.cos(angle)*radius+Math.cos(star.scatter)*offset;
-      const y=Math.sin(angle)*radius*.56+star.depth*w*.03+Math.sin(star.scatter)*offset;
-      c.globalAlpha=(.35+star.light*.65)*(1-blast*.3);
-      c.fillStyle=star.radius<.2?(light?'#875320':'#ffe2ad'):star.light>.7?armColor:(light?'#62677c':'#e6d8c5');
-      c.beginPath();c.arc(x,y,star.size*(1-blast*.35),0,Math.PI*2);c.fill();
+    const blast=galaxyBusy?Math.pow(Math.sin(progress*Math.PI),.8):0;
+    const image=$('portalImage'),scale=Math.min(w/(image.naturalWidth||1280),h/(image.naturalHeight||730));
+    const iw=(image.naturalWidth||1280)*scale,ih=(image.naturalHeight||730)*scale;
+    c.save();c.translate(w/2,h/2);
+    for(let i=0;i<galaxy.length;i+=galaxyBusy?1:61){
+      const star=galaxy[i];
+      const sx=star.u*iw,sy=star.v*ih,twist=blast*.45;
+      const dx=Math.cos(star.scatter+twist),dy=Math.sin(star.scatter+twist)*.7;
+      const core=Math.hypot(star.u,star.v)<.075;
+      const reach=Math.min(w*.27*(star.spread||.7),(w*.48-Math.abs(sx))/Math.max(Math.abs(dx),.01),(h*.48-Math.abs(sy))/Math.max(Math.abs(dy),.01));
+      const offset=blast*Math.max(0,reach)*(core?.12:1),x=sx+dx*offset,y=sy+dy*offset;
+      c.globalAlpha=galaxyBusy?(.65+star.light*.35):(.1+.12*Math.sin(universeTime*.001+i))*(light?.4:1);
+      c.fillStyle=star.color;
+      const size=star.size*(galaxyBusy?1.8:1);
+      c.fillRect(x-size/2,y-size/2,size,size);
     }
-    if(galaxyBusy){c.globalAlpha=(1-progress)*.45;c.strokeStyle=light?'#865523':'#edc99a';c.lineWidth=1;c.beginPath();c.ellipse(0,0,w*progress*.7,h*progress*.45,0,0,Math.PI*2);c.stroke();}
     c.restore();c.globalAlpha=1;
+    portal.style.setProperty('--galaxy-opacity',String(galaxyBusy?1-blast*.72:1));
     portal.classList.add('ready');
     if(galaxyBusy&&progress>=1)finishGalaxy();
   }
   function finishGalaxy(){
     if(!galaxyBusy)return;
-    galaxyBusy=false;galaxyView=1-galaxyView;portal.classList.remove('busy');portal.removeAttribute('aria-busy');
-    $('portalCaption').textContent=galaxyView?'Reformed / a new constellation of possibilities':'Spiral galaxy / ready to explode';
+    galaxyBusy=false;galaxyView++;portal.classList.remove('busy');portal.removeAttribute('aria-busy');portal.dataset.galaxyState='rest';
+    $('portalCaption').textContent=`Reformed / ORBIT galaxy / ${galaxyView} gravity ${galaxyView===1?'surge':'surges'}`;
     paintGalaxy();
   }
   function explodeGalaxy(){
-    if(galaxyBusy)return;
+    if(galaxyBusy){
+      // A click during reassembly reverses it at the same particle positions.
+      const progress=clamp((universeTime-galaxyStart)/3200);
+      if(progress>.5)galaxyStart=universeTime-(1-progress)*3200;
+      return;
+    }
     galaxyBusy=true;galaxyStart=universeTime;portal.classList.add('busy');portal.setAttribute('aria-busy','true');
+    portal.dataset.galaxyState='scattering';
     $('portalCaption').textContent='Gravity, briefly interrupted.';
     if(still()||!dustCtx)finishGalaxy();
   }
   portal.addEventListener('click',explodeGalaxy);$('transformImage').addEventListener('click',explodeGalaxy);
   $('anomaly').addEventListener('click',()=>{
     if(still()){toast('Gravity surge. Motion is paused; the universe stays still.');return;}
-    warpUntil=universeTime+2800;$('home').classList.add('gravity-surge');
+    warpUntil=universeTime+SURGE_DURATION;$('home').classList.add('gravity-surge');
   });
+  $('horizonTarget').addEventListener('click',()=>$('anomaly').click());
   $('lostStar').addEventListener('click',()=>{
-    if(still()){toast('Wish received. The meteor shower waits until motion is enabled.');return;}
-    shower=7;nextMeteor=universeTime;document.querySelector('.constellation').classList.add('wishing');
+    if(still()){toast('Motion is paused. Resume motion, then make another wish.');return;}
+    meteors=[];shower=lowPower?7:12;nextMeteor=universeTime;document.querySelector('.constellation').classList.add('wishing');toast('Wish received. Look up.');
   });
   function animate(time){
     frame=0;if(still()||document.hidden)return;
-    const delta=lastTime?Math.min(time-lastTime,60):16;lastTime=time;universeTime+=delta;
-    if(visible.has($('projects'))&&!solar.matches(':hover, :focus-within'))orbitTime+=delta;
-    if(time-lastPaint>=33){
+    const delta=lastTime?time-lastTime:16;lastTime=time;universeTime+=delta;
+    if(visible.has($('projects'))&&!solar.matches(':hover'))orbitTime+=delta;
+    if(visible.has($('about'))&&!moonWorld.matches(':hover'))moonTime+=delta;
+    if(time-lastPaint>=(lowPower?50:33)){
       camera.x+=(pointer.x-camera.x)*.07;camera.y+=(pointer.y-camera.y)*.07;
       if(universeTime>=nextMeteor){
-        meteors.push({x:Math.random()*width*.8,y:Math.random()*height*.5-100,start:universeTime,length:75+Math.random()*90});
-        nextMeteor=universeTime+(shower>0?230:4600);shower=Math.max(0,shower-1);
+        const x=width*(.1+Math.random()*.75),y=-40-Math.random()*height*.15;
+        meteors.push({x,y,vx:(x-width*.15)*.7+width*.16,vy:height*.8,start:universeTime,length:80+Math.random()*85});
+        shower=Math.max(0,shower-1);nextMeteor=universeTime+(shower>0?190:24000+Math.random()*18000);
       }
       meteors=meteors.filter(meteor=>universeTime-meteor.start<1800);
-      paintStars();
+      if(meteors.length||warpUntil>universeTime||time-lastSkyPaint>(lowPower?180:100)){paintStars();lastSkyPaint=time;}
       if(visible.has($('home')))paintFlow();
+      worlds.forEach(world=>{if(visible.has(world.section))paintWorld(world);});
       if(visible.has($('observatory')))paintGalaxy();
       if(visible.has($('projects')))movePlanets();
+      if(visible.has($('about')))moveMoon();
+      if(visible.has($('education'))&&nebulaValue!==nebulaTarget)paintNebula();
       if(warpUntil<=universeTime)$('home').classList.remove('gravity-surge');
       if(!shower&&!meteors.length)document.querySelector('.constellation').classList.remove('wishing');
       lastPaint=time;
@@ -390,20 +552,20 @@
   }
   function paintCursor(time){
     cursorFrame=0;if(!trailCtx)return;
-    trail=trail.filter(point=>time-point.time<280);
+    trail=trail.filter(point=>time-point.time<190);
     trailCtx.clearRect(0,0,width,height);
     trail.forEach((point,i)=>{
-      trailCtx.globalAlpha=(1-(time-point.time)/280)*.5;trailCtx.fillStyle='#edc99a';
+      trailCtx.globalAlpha=(1-(time-point.time)/190)*.45;trailCtx.fillStyle=root.dataset.theme==='light'?'#865523':'#edc99a';
       trailCtx.beginPath();trailCtx.arc(point.x,point.y,Math.max(.4,i/trail.length*2),0,Math.PI*2);trailCtx.fill();
     });trailCtx.globalAlpha=1;
     if(trail.length)cursorFrame=requestAnimationFrame(paintCursor);
   }
   window.addEventListener('pointermove',event=>{
-    if(event.pointerType!=='mouse'||innerWidth<=600||still()||!finePointer.matches||document.querySelector('dialog[open]')){clearCursor();return;}
+    if(event.pointerType!=='mouse'||innerWidth<=600||still()||lowPower||!finePointer.matches||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable]')){clearCursor();return;}
     pointer={x:(event.clientX/innerWidth-.5)*20,y:(event.clientY/innerHeight-.5)*16};
     root.classList.add('star-cursor');root.classList.toggle('cursor-link',Boolean(event.target.closest('a,button,summary')));
-    cursor.style.transform=`translate(${event.clientX-12}px,${event.clientY-12}px)`;
-    trail.push({x:event.clientX,y:event.clientY,time:performance.now()});if(trail.length>30)trail.shift();
+    cursor.style.transform=`translate(${event.clientX-8}px,${event.clientY-8}px)`;
+    trail.push({x:event.clientX,y:event.clientY,time:performance.now()});if(trail.length>6)trail.shift();
     if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);
   },{passive:true});
   document.addEventListener('pointerleave',clearCursor);window.addEventListener('blur',clearCursor);
@@ -419,7 +581,7 @@
       finishGalaxy();clearCursor();meteors=[];shower=0;warpUntil=0;
       $('home').classList.remove('gravity-surge');document.querySelector('.constellation').classList.remove('wishing');
       document.getAnimations().filter(animation=>!(animation instanceof CSSAnimation)&&Number.isFinite(animation.effect?.getComputedTiming().endTime)).forEach(animation=>animation.finish());
-      paintStars();paintFlow();paintGalaxy();
+      paintStars();paintFlow();paintGalaxy();paintNebula();
     }
     syncScenes();queueScroll();
   }
@@ -433,7 +595,9 @@
     if(document.hidden){finishGalaxy();clearCursor();}
     syncScenes();
   });
-  window.addEventListener('resize',resizeScenes,{passive:true});
+  let resizeTimer;
+  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(resizeScenes,100);},{passive:true});
+  document.querySelector('.hero-media img').addEventListener('load',resizeScenes);
   document.fonts.ready.then(resizeScenes);
-  resizeScenes();updateMotion();measure();
+  resizeScenes();updateMotion();measure();selectHash();
 })();
