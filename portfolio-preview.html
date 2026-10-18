@@ -168,6 +168,13 @@ html[data-motion=paused] .arrival-flash>.waypoint:after{animation:none!important
 .nebula-window.transition-ready .first-light-fallback{display:none}
 .contact:before{opacity:.4;mask-image:linear-gradient(transparent,#000 35%,#000 80%,transparent)}
 @media(max-width:600px){.constellation{max-width:400px}.project-world{width:57%;left:23.5%;top:15%}}
+
+/* G1: viewport chrome only; nested dialog/text-area scrollbars stay native. */
+html{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}
+#starCursor{width:10px;height:10px;font-size:0;background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 3px #edc99a);scale:1;transition:scale .15s}
+html.star-cursor.cursor-link #starCursor{scale:1.2}
+html[data-theme=light].cursor-link #starCursor{color:#70411d;filter:drop-shadow(0 0 2px #fff)}
 </style>
 </head>
 <body>
@@ -457,7 +464,7 @@ window.OrbitMaterials = (() => {
     ['projects','Experiments'], ['experience','Experience'], ['education','Learning'],
     ['certificates','Milestones'], ['observatory','Observatory'], ['contact','First contact']
   ];
-  let destinationPositions = [];
+  let destinationPositions = [],routePoints=[],scrollFrame=0;
   function measure() {
     const box = expedition.getBoundingClientRect();
     expeditionTop = box.top + scrollY;
@@ -475,6 +482,15 @@ window.OrbitMaterials = (() => {
     $('flightSvg').style.height=`${height}px`;
     chapterPositions = points.map(point => point.y);
     let d = `M ${points[0].x} 0 L ${points[0].x} ${points[0].y}`;
+    routePoints=[{x:points[0].x,y:0,length:0},{...points[0],length:points[0].y}];
+    function sampleCurve(start,a,b,end){
+      for(let i=1;i<=48;i++){
+        const t=i/48,u=1-t,previous=routePoints[routePoints.length-1];
+        const x=u*u*u*start.x+3*u*u*t*a.x+3*u*t*t*b.x+t*t*t*end.x;
+        const y=u*u*u*start.y+3*u*u*t*a.y+3*u*t*t*b.y+t*t*t*end.y;
+        routePoints.push({x,y,length:previous.length+Math.hypot(x-previous.x,y-previous.y)});
+      }
+    }
     points.forEach((point,i)=>{
       const next=points[i+1]||{x:point.x,y:height},delta=next.y-point.y;
       const lane=width<700?point.x+(i%2?4:-4):(point.x>width*.5?width*.95:width*.045);
@@ -482,18 +498,30 @@ window.OrbitMaterials = (() => {
       const approach=Math.min(110,delta*.22);
       d+=` C ${point.x} ${point.y+delta*.18}, ${lane} ${point.y+delta*.18}, ${lane} ${point.y+delta*.4}`;
       d+=` C ${lane} ${next.y-approach}, ${next.x} ${next.y-approach}, ${next.x} ${next.y}`;
+      const middle={x:lane,y:point.y+delta*.4};
+      sampleCurve(point,{x:point.x,y:point.y+delta*.18},{x:lane,y:point.y+delta*.18},middle);
+      sampleCurve(middle,{x:lane,y:next.y-approach},{x:next.x,y:next.y-approach},next);
     });
     path.setAttribute('d', d);
     $('flightGhost').setAttribute('d', d);
     pathLength = path.getTotalLength();
+    const scale=pathLength/routePoints[routePoints.length-1].length;
+    routePoints.forEach(point=>point.length*=scale);
     chapterProgress=chapterPositions.map(y=>distanceAtY(y)/pathLength);
     path.style.strokeDasharray = String(pathLength);
     queueScroll();
   }
   function distanceAtY(y){
-    let low=0,high=pathLength;
-    for(let i=0;i<15;i++){const middle=(low+high)/2;if(path.getPointAtLength(middle).y<y)low=middle;else high=middle;}
-    return (low+high)/2;
+    let low=0,high=routePoints.length-1;
+    while(high-low>1){const middle=(low+high)>>1;if(routePoints[middle].y<y)low=middle;else high=middle;}
+    const a=routePoints[low],b=routePoints[high],t=clamp((y-a.y)/Math.max(.001,b.y-a.y));
+    return a.length+(b.length-a.length)*t;
+  }
+  function pointAtDistance(length){
+    let low=0,high=routePoints.length-1;
+    while(high-low>1){const middle=(low+high)>>1;if(routePoints[middle].length<length)low=middle;else high=middle;}
+    const a=routePoints[low],b=routePoints[high],t=clamp((length-a.length)/Math.max(.001,b.length-a.length));
+    return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
   }
   function renderScroll() {
     frameQueued = false;
@@ -513,11 +541,11 @@ window.OrbitMaterials = (() => {
     }
     if (!pathLength) return;
     const targetY = clamp(y + innerHeight * .55 - expeditionTop, 0, expeditionHeight);
-    // The curve's Y is monotonic. Binary search keeps the comet at the reader's height.
+    // Sample the unchanged cubic route once; scroll frames never query SVG geometry.
     const length=distanceAtY(targetY),progress=length/pathLength;
     expedition.dataset.routeProgress=progress.toFixed(6);
     path.style.strokeDashoffset = String(pathLength - length);
-    const head = path.getPointAtLength(length);
+    const head = pointAtDistance(length);
     $('cometHead').setAttribute('cx', head.x);
     $('cometHead').setAttribute('cy', head.y);
     $('cometSpark').setAttribute('transform',`translate(${head.x} ${head.y})`);
@@ -526,7 +554,7 @@ window.OrbitMaterials = (() => {
     previousCometLength=length;
     let tail = '';
     for (let i = 0; i <= 14; i++) {
-      const point = path.getPointAtLength(clamp(length-direction*(160-i*160/14),0,pathLength));
+      const point = pointAtDistance(clamp(length-direction*(160-i*160/14),0,pathLength));
       tail += `${i ? ' L' : 'M'} ${point.x} ${point.y}`;
     }
     $('cometTail').setAttribute('d', still() ? '' : tail);
@@ -543,7 +571,10 @@ window.OrbitMaterials = (() => {
       station.classList.toggle('arriving', i===arrival);
     });
   }
-  function queueScroll() { if (!frameQueued) { frameQueued = true; requestAnimationFrame(renderScroll); } }
+  function queueScroll() {
+    frameQueued=true;
+    if(still()&&!scrollFrame)scrollFrame=requestAnimationFrame(()=>{scrollFrame=0;if(frameQueued)renderScroll();});
+  }
   window.addEventListener('scroll', queueScroll, {passive:true});
   const routeObserver=new ResizeObserver(measure);
   [expedition,$('observatory'),$('contact')].forEach(section=>routeObserver.observe(section));
@@ -614,7 +645,7 @@ window.OrbitMaterials = (() => {
     fitCanvas(dust,galaxyWidth,galaxyHeight,density);
     fitCanvas(flow,flowWidth,flowHeight);
     fitCanvas(nebulaCanvas,nebulaWidth,nebulaHeight,density);
-    fitCanvas($('cursorTrail'),width,height);
+    fitCanvas($('cursorTrail'),width,height,Math.min(devicePixelRatio||1,2));
     let seed=4107;
     const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
     stars=Array.from({length:lowPower?65:width<600?80:145},()=>({x:random()*width,y:random()*height,r:.3+random()*1.1,a:.15+random()*.5,z:.2+random()*.8,phase:random()*6.28}));
@@ -813,6 +844,7 @@ window.OrbitMaterials = (() => {
   });
   function animate(time){
     frame=0;if(still()||document.hidden)return;
+    if(frameQueued)renderScroll();
     const delta=lastTime?time-lastTime:16;lastTime=time;universeTime+=delta;
     if(visible.has($('projects'))&&!solar.matches(':hover'))orbitTime+=delta;
     if(visible.has($('about'))&&!moonWorld.matches(':hover'))moonTime+=delta;
@@ -845,30 +877,51 @@ window.OrbitMaterials = (() => {
   // The native cursor stays available for touch, keyboard use, dialogs and reduced motion.
   const trailCanvas=$('cursorTrail'),trailCtx=trailCanvas.getContext('2d'),cursor=$('starCursor');
   const finePointer=matchMedia('(hover: hover) and (pointer: fine)');
-  let cursorFrame=0,trail=[];
+  let cursorFrame=0,trail=[],cursorTarget=null,cursorPosition=null,lastCursorTime=0,burstUntil=0;
   function clearCursor(){
-    root.classList.remove('star-cursor','cursor-link');trail=[];
+    root.classList.remove('star-cursor','cursor-link');trail=[];cursorTarget=null;cursorPosition=null;lastCursorTime=0;burstUntil=0;
     cancelAnimationFrame(cursorFrame);cursorFrame=0;
     if(trailCtx)trailCtx.clearRect(0,0,width,height);
   }
   function paintCursor(time){
-    cursorFrame=0;if(!trailCtx)return;
-    trail=trail.filter(point=>time-point.time<190);
+    cursorFrame=0;if(!trailCtx||!cursorTarget)return;
+    const delta=lastCursorTime?Math.min(40,time-lastCursorTime):16,alpha=1-Math.exp(-delta/10);lastCursorTime=time;
+    cursorPosition.x+=(cursorTarget.x-cursorPosition.x)*alpha;cursorPosition.y+=(cursorTarget.y-cursorPosition.y)*alpha;
+    const dx=cursorTarget.x-cursorPosition.x,dy=cursorTarget.y-cursorPosition.y,lag=Math.hypot(dx,dy);
+    if(lag>6){cursorPosition.x=cursorTarget.x-dx/lag*6;cursorPosition.y=cursorTarget.y-dy/lag*6;}
+    cursor.style.transform=`translate(${cursorPosition.x-5}px,${cursorPosition.y-5}px)`;
+    const previous=trail[trail.length-1];
+    if(!previous||Math.hypot(previous.x-cursorPosition.x,previous.y-cursorPosition.y)>.25){trail.push({...cursorPosition,time});if(trail.length>32)trail.shift();}
+    trail=trail.filter(point=>time-point.time<220);
     trailCtx.clearRect(0,0,width,height);
-    trail.forEach((point,i)=>{
-      trailCtx.globalAlpha=(1-(time-point.time)/190)*.45;trailCtx.fillStyle=root.dataset.theme==='light'?'#865523':'#edc99a';
-      trailCtx.beginPath();trailCtx.arc(point.x,point.y,Math.max(.4,i/trail.length*2),0,Math.PI*2);trailCtx.fill();
-    });trailCtx.globalAlpha=1;
-    if(trail.length)cursorFrame=requestAnimationFrame(paintCursor);
+    const c=trailCtx,color=root.dataset.theme==='light'?'#865523':'#edc99a',limit=root.classList.contains('cursor-link')?38:84;
+    const points=[{...cursorPosition,distance:0}];let distance=0;
+    for(let i=trail.length-1;i>=0;i--){
+      const a=points[points.length-1],b=trail[i],length=Math.hypot(b.x-a.x,b.y-a.y);if(length<.1)continue;
+      const fraction=Math.min(1,(limit-distance)/length);distance+=length*fraction;
+      points.push({x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,distance});if(distance>=limit)break;
+    }
+    if(points.length>1){
+      const end=points[points.length-1],gradient=c.createLinearGradient(end.x,end.y,cursorPosition.x,cursorPosition.y);
+      gradient.addColorStop(0,'transparent');gradient.addColorStop(1,color);c.fillStyle=gradient;c.globalAlpha=Math.max(0,1-(time-trail[trail.length-1].time)/220);
+      const sides=[[],[]];
+      points.forEach((point,i)=>{const next=points[Math.min(i+1,points.length-1)],prev=points[Math.max(0,i-1)],dx=next.x-prev.x,dy=next.y-prev.y,length=Math.max(.01,Math.hypot(dx,dy)),radius=2.1*Math.pow(1-point.distance/Math.max(1,distance),.8);sides[0].push({x:point.x-dy/length*radius,y:point.y+dx/length*radius});sides[1].push({x:point.x+dy/length*radius,y:point.y-dx/length*radius});});
+      c.beginPath();[...sides[0],...sides[1].reverse()].forEach((point,i)=>i?c.lineTo(point.x,point.y):c.moveTo(point.x,point.y));c.closePath();c.fill();
+      c.fillStyle=color;points.filter((_,i)=>i>0&&i%Math.ceil(points.length/6)===0).forEach(point=>{c.globalAlpha=.35*(1-point.distance/limit);c.fillRect(point.x-.6,point.y-.6,1.2,1.2);});
+    }
+    if(burstUntil>time){const progress=1-(burstUntil-time)/220;c.globalAlpha=(1-progress)*.65;c.strokeStyle=color;c.lineWidth=1;c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3,r=4+progress*9;c.moveTo(cursorPosition.x+Math.cos(a)*r,cursorPosition.y+Math.sin(a)*r);c.lineTo(cursorPosition.x+Math.cos(a)*(r+3),cursorPosition.y+Math.sin(a)*(r+3));}c.stroke();}
+    c.globalAlpha=1;
+    if(trail.length||burstUntil>time)cursorFrame=requestAnimationFrame(paintCursor);
   }
   window.addEventListener('pointermove',event=>{
-    if(event.pointerType!=='mouse'||innerWidth<=600||still()||lowPower||!finePointer.matches||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable]')){clearCursor();return;}
+    if(!trailCtx||event.pointerType!=='mouse'||innerWidth<=600||still()||lowPower||!finePointer.matches||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable]')){clearCursor();return;}
     pointer={x:(event.clientX/innerWidth-.5)*20,y:(event.clientY/innerHeight-.5)*16};
     root.classList.add('star-cursor');root.classList.toggle('cursor-link',Boolean(event.target.closest('a,button,summary')));
-    cursor.style.transform=`translate(${event.clientX-8}px,${event.clientY-8}px)`;
-    trail.push({x:event.clientX,y:event.clientY,time:performance.now()});if(trail.length>6)trail.shift();
+    cursorTarget={x:event.clientX,y:event.clientY};
+    if(!cursorPosition){cursorPosition={...cursorTarget};cursor.style.transform=`translate(${cursorPosition.x-5}px,${cursorPosition.y-5}px)`;}
     if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);
   },{passive:true});
+  window.addEventListener('pointerdown',()=>{if(!cursorTarget)return;burstUntil=performance.now()+220;if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);},{passive:true});
   document.addEventListener('pointerleave',clearCursor);window.addEventListener('blur',clearCursor);
   document.addEventListener('keydown',clearCursor);finePointer.addEventListener('change',clearCursor);
   document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('toggle',clearCursor));
