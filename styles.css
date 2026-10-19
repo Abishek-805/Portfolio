@@ -168,6 +168,31 @@ html[data-motion=paused] .arrival-flash>.waypoint:after{animation:none!important
 /* G1: viewport chrome only; nested dialog/text-area scrollbars stay native. */
 html{scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}
-#starCursor{width:10px;height:10px;font-size:0;background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 3px #edc99a);scale:1;transition:scale .15s}
+#starCursor{width:18px;height:18px;font-size:0;background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 3px #edc99a);scale:1;transition:scale .15s}
 html.star-cursor.cursor-link #starCursor{scale:1.2}
 html[data-theme=light].cursor-link #starCursor{color:#70411d;filter:drop-shadow(0 0 2px #fff)}
+
+/* G3 candidate: original cubic route, transparent procedural comet artwork. */
+#cometWake{fill:url(#cometColor);stroke:none;filter:none;opacity:.9}
+#cometTail{stroke:url(#cometColor)!important;stroke-width:1.2!important;filter:none!important}
+#cometAura{fill:url(#cometBloom);pointer-events:none}
+#cometDust{fill:#b9dfff;pointer-events:none}
+html[data-theme=light] #cometColor stop:first-child{stop-color:#456b96}
+html[data-theme=light] #cometColor stop:nth-child(2){stop-color:#56799d}
+html[data-theme=light] #cometColor stop:last-child{stop-color:#865523}
+html[data-theme=light] #cometDust{fill:#607a9c}
+#cometHead{r:3;fill:#fff6df;filter:drop-shadow(0 0 4px #f3d7a3)}
+html[data-quality=low] #cometWake{filter:none}
+html[data-motion=paused] #cometWake,html[data-motion=paused] #cometDust,html[data-motion=paused] #cometAura{display:none}
+.arrival-flash>.waypoint:after{background:repeating-conic-gradient(#f7d6a2 0deg 5deg,transparent 5deg 45deg);mask-image:radial-gradient(transparent 30%,#000 55%,transparent 75%)}
+
+/* Approved opaque render: preserve the dark horizon in both page themes. */
+.hero{--bg:#07090e;--text:#ecebea;--muted:#a7a8b4;--subtle:#9398a7;--accent:#edc99a;--accent-ink:#1a1411;--line:#ffffff26;background:var(--bg);color:var(--text)}
+.hero-media{background:#000;mask-image:linear-gradient(#000 88%,transparent)}
+#holeVideo{display:block;position:absolute;left:20%;width:80%;height:100%;top:0;object-fit:contain;opacity:0;pointer-events:none;mix-blend-mode:normal}
+.hero-media img,html[data-theme=light] .hero-media img{opacity:1;animation:none;filter:none}
+.hero-media.video-ready img{opacity:0!important}.hero-media.video-ready #holeVideo{opacity:1}
+html[data-theme=light] .hero-media:after{background:linear-gradient(90deg,var(--bg) 3%,#07090ed4 23%,transparent 65%),linear-gradient(0deg,var(--bg),transparent 30%)}
+.video-start{position:absolute;z-index:4;left:6%;bottom:12%;font-size:11px;background:var(--bg)}
+@media(max-width:600px){#holeVideo{left:0;width:100%;top:51%;height:48%}html[data-theme=light] .hero-media:after{background:linear-gradient(var(--bg),transparent 60%),linear-gradient(0deg,var(--bg),transparent 20%)}.video-start{bottom:15%}}
+html:not(.js) #holeVideo{display:none}

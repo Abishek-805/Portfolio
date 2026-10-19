@@ -1,49 +1,44 @@
-# ORBIT — cosmic portfolio, approved G1
+# ORBIT: animated cosmic portfolio, live refinement
 
-A responsive personal portfolio presented as a cosmic journey: identity, profile, skills, projects, experience, education, milestones and contact. Personal details and project case studies are intentionally placeholders.
+Approved effects integrated on 19 October 2026: Blender-rendered black-hole loop with poster/MP4 fallbacks, the original zigzag route with comet wake and checkpoint rays, and an 18px star cursor with a shorter fading trail. See `APPROVED_EFFECTS_INTEGRATION.md` for validation and rollback details. The source model stays private.
 
-This branch contains the approved V4.2 G1 version. It preserves the artwork, sections, Earth/Moon interaction, project worlds and zigzag journey. G1 adds a tapered cursor trail, hides only the viewport scrollbar and caches journey geometry while preserving native scrolling, reverse travel and paused-mode progress.
+Open http://127.0.0.1:8000/ while the local server is running. Refresh the existing tab after changes. Alternatively, open `portfolio-preview.html`: it embeds all required assets and works offline.
 
-G2 black-hole comparisons, Tripo experiments and the separately supplied Blender model are not integrated. Publishing this branch does not deploy the site or merge it into main.
+Start the same port from this folder with `python -m http.server 8000 --bind 127.0.0.1`. No application dependencies or framework installation are required.
 
-## Run locally
+Latest repairs for the 14:57:42 recording: see `VIDEO_REPAIR_REPORT.md` and `VIDEO_REPAIR_PLAN.md`. Open `review-repair/index.html` for the source-matched before/after gallery and recordings. Older VIDEO_FIX reports describe earlier work.
 
-From the repository folder:
+## Try the interactions
 
-```powershell
-python -m http.server 8000 --bind 127.0.0.1
-```
+- Earth selects the professional profile; the Moon selects personal interests. Details animate in.
+- Project worlds change prominence when selected. Their labelled controls stay fixed. Select a world, a labelled control, or previous/next.
+- Skill stars reveal descriptions. Make a wish launches a short meteor shower.
+- Click the galaxy or Explode the galaxy. Its particles scatter and reform. Hovering alone does not trigger it.
+- Click the black hole itself or Disturb spacetime for a gravity surge through the star field.
+- Hover/focus the nebula to form new stars within the same stellar nursery. Leave to let them fade, or tap/click to pin and unpin their light.
+- Follow the comet: checkpoint stars shine on arrival.
+- Move the mouse for a star cursor with a fading trail. Touch, keyboard navigation, dialogs, small screens and reduced motion retain the native cursor.
+- Open project briefs, the experience mission log, learning notes and milestone signals. These use native disclosures, work with a keyboard and remain usable without JavaScript.
+- Hover or focus interactive elements for gentle feedback. Opening the mission log tilts Saturn; learning notes illuminate the nebula. New chapters enter once without hiding their content afterward.
 
-Open http://127.0.0.1:8000/. Choose another port if 8000 is already in use. No build or application dependency installation is required. `portfolio-preview.html` is a self-contained offline export.
+## Personalize
 
-## Interactions
+In `index.html`, replace Your Name (including the page title), `assets/profile-placeholder.svg`, location, role, biography, interests, experience, education and milestones. Add verified contact, GitHub and résumé destinations where the unavailable status text appears. Replace concept summaries, expandable briefs and `.project-preview` mockups with real case studies and screenshots. Add verified project links when available. All personal content is intentionally sample material.
 
-- Earth and Moon reveal professional and personal profile details.
-- Project planets and their fixed controls select project stories and expandable briefs.
-- Constellation stars reveal skills; the wish interaction triggers a bounded meteor shower.
-- Clicking the galaxy scatters and regroups its particles. The nebula forms stars on hover or focus and supports tap-to-pin.
-- The comet follows the journey, with checkpoint feedback. The black-hole interaction triggers the existing gravity surge.
-- The star map supports keyboard navigation and Escape. Native disclosures reveal additional portfolio details.
+Skill descriptions are in `script.js`; colors, surface maps and responsive layouts are in `styles.css`. Attribution is in the footer and `ASSET_CREDITS.md`.
 
-Use the motion and theme controls in the header. System reduced motion takes priority. Touch, keyboard navigation, dialogs and constrained devices retain the native cursor. Portfolio content stays readable without JavaScript; original images and CSS worlds provide rendering fallbacks. Effects are artistic illustrations, not physically accurate simulations.
+## Motion and fallbacks
 
-## Personalize and maintain
+The motion button pauses continuous scenes and settles an active explosion. System reduced motion takes priority. A shared clock renders only visible foreground scenes; offscreen CSS animation and hidden-tab rendering stop. Particle counts and pixel density are capped.
 
-Edit the identity, profile, project summaries, experience, education, milestones and contact placeholders in `index.html`. Replace `assets/profile-placeholder.svg` with your portrait. Add verified project, email, GitHub and resume destinations. Skills are in `script.js`; visual styling is in `styles.css`. The bounded native WebGL material renderer is in `materials.js`; no Three.js dependency is used.
+One shared native WebGL buffer provides spherical surface projection for the main worlds and animates the original reference-based black-hole artwork. It uses the existing scene clock; no Three.js or runtime dependency is required. Render sizes are capped at 1200px for the hero and 320px for planets, or 640px/160px on constrained devices. Original imagery and CSS spheres remain available when WebGL fails. The Moon follows the same tilted ellipse as its drawn orbit and resumes after pointer leave, even with retained keyboard focus. Its labelled selectors stay fixed. Saturn is an illustration with separate front/back ring layers. Galaxy positions/colors are sampled reproducibly from the original ORBIT galaxy artwork without a regular pixel grid. These are artistic effects, not physically accurate simulations. Without JavaScript, portfolio content remains readable.
 
-After editing source or assets, regenerate the offline export:
+## Build and verify
 
-```powershell
-node build-preview.cjs
-```
+Run `node build-preview.cjs` after source edits to regenerate offline HTML, including font licenses. Run `node verify.cjs` with Playwright available to Node and Microsoft Edge installed. Tests default to port 8000; set `ORBIT_URL` to check another served URL.
 
-With Playwright available to Node and Microsoft Edge installed, run the regression suite against the local server:
+The current test suite covers identity/actions, Moon movement with fixed selectors, rapid project selection, image hover/leave and touch pinning, three galaxy cycles, modal keyboard handling, expanded-section reflow, eight widths (320–1920px) in both themes, motion preferences, constrained-device settings, offline and no-JavaScript behavior. Set ORBIT_EVIDENCE to choose its output directory. Mobile planet selections bring new details into view.
 
-```powershell
-$env:ORBIT_URL = 'http://127.0.0.1:8000/'
-node verify.cjs
-```
+The previous version's Lighthouse scores do not apply to this refinement. Current measurements use an Edge headless 4× CPU-throttled comparison, documented with limits in LIVE_TEST_REPORT.md. Safari/iOS, Firefox and physical-phone frame pacing have not been tested.
 
-`ORBIT_EVIDENCE` can select a test-output folder. Tests cover content and interactions, keyboard dialogs, responsive themes, motion preferences and fallbacks. Local Chromium checks do not establish physical-phone, Safari, Firefox, screen-reader, thermal or battery performance.
-
-Asset attributions are retained in `ASSET_CREDITS.md`, license notices and the page footer. Earlier repair notes remain historical records; `G1_RELEASE_NOTES.md` describes this branch's publication scope.
+Current recording audit: VIDEO_FIX_PLAN.md and VIDEO_FIX_REPORT.md. Original foreground artwork, exact generation prompts and asset paths: ARTWORK_PROMPTS.md. Earlier notes: LIVE_POLISH_NOTES.md, LIVE_REFERENCES.md and LIVE_TEST_REPORT.md. PHASE_2_POLISH.md, MOTION_PLAN.md and IMPROVEMENTS.md are historical records. The immediate pre-fix site was backed up to `C:/Users/ashek/Downloads/orbit-video-audit-20261018/before-video-fixes.zip` with SHA-256 verification. GitHub main and the rejected prototype remain unchanged.

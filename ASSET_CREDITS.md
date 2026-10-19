@@ -1,12 +1,18 @@
 # Asset credits and provenance
 
+## Approved black-hole render, 19 October 2026
+
+`black-hole-loop.webm`, `black-hole-loop.mp4` and `black-hole-poster.jpg`: locally rendered from [Realistic Black Hole by ArmTM](https://www.cgtrader.com/free-3d-models/space/other/realistic-black-hole-e501f1e4-383c-4f49-aa7a-c1386cc5c215), CGTrader Royalty Free (no AI). Rendered output incorporated into this portfolio; the source model remains private and was not submitted to an AI service. Camera locked; material-coordinate rotation forms a four-second loop, 768 x 432, 24 fps. No screen blending is used. The matching poster is the no-JavaScript, reduced-motion first-load and media-error fallback. Older artwork and research credits follow.
+
+Comet head, tapered trails, dust, checkpoint rays and meteor streaks are drawn in SVG/Canvas, informed by the user-supplied reference; its JPEG is not used as a runtime overlay.
+
 ## Original foreground artwork, final recording revision
 
-The live black hole, spiral galaxy and learning nebula are original AI-assisted assets generated with the built-in image_gen tool from the supplied references. See ARTWORK_PROMPTS.md for exact prompts, final project paths, dimensions, provenance and encoding details. They have genuine alpha, are fitted without cropping and are animated without changing their silhouettes. The generated galaxy is fictional; NGC 1300 is its credited visual reference, not its identity. Reference: NASA, ESA, and The Hubble Heritage Team (STScI/AURA), [NGC 1300](https://esahubble.org/images/opo0501a/), [CC BY 4.0](https://esahubble.org/copyright/). Older entries below describe historical assets and research.
+The earlier black-hole artwork, and the current spiral galaxy and learning nebula, are original AI-assisted assets generated with the built-in image_gen tool from the supplied references. See ARTWORK_PROMPTS.md for exact prompts, final project paths, dimensions, provenance and encoding details. They have genuine alpha, are fitted without cropping and are animated without changing their silhouettes. The generated galaxy is fictional; NGC 1300 is its credited visual reference, not its identity. Reference: NASA, ESA, and The Hubble Heritage Team (STScI/AURA), [NGC 1300](https://esahubble.org/images/opo0501a/), [CC BY 4.0](https://esahubble.org/copyright/). Older entries below describe historical assets and research.
 
 ## Recording corrections, 18 October 2026
 
-`saturn-map.webp`: [Solar System Scope / INOVE Saturn map](https://www.solarsystemscope.com/textures/download/2k_saturn.jpg), [CC BY 4.0](https://www.solarsystemscope.com/textures/), resized from 2048×1024 to 1024×512 and encoded as WebP. It replaces the Cassini photograph in the experience scene with an explicitly illustrated sphere and code-drawn rings. Main planetary maps now use spherical shader projection. The current black-hole artwork is animated in place; it remains the owner-supplied reference, not a film frame or a physical ray-tracing simulation.
+`saturn-map.webp`: [Solar System Scope / INOVE Saturn map](https://www.solarsystemscope.com/textures/download/2k_saturn.jpg), [CC BY 4.0](https://www.solarsystemscope.com/textures/), resized from 2048×1024 to 1024×512 and encoded as WebP. It replaces the Cassini photograph in the experience scene with an explicitly illustrated sphere and code-drawn rings. Main planetary maps now use spherical shader projection. The earlier black-hole artwork was animated in place. The approved hero now uses the Blender-rendered loop described above.
 
 Implementation reference: [MDN WebGL best practices](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices), including bounded back buffers and graphics-context failure handling. One shared WebGL buffer serves visible scenes; the original Canvas/photo/CSS fallbacks remain.
 
