@@ -1,3 +1,5 @@
 node_modules/
 test-evidence/
 *.zip
+/trash/*
+!/trash/README.md

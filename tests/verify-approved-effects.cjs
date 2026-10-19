@@ -1,5 +1,7 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const url=process.env.ORBIT_URL||'http://127.0.0.1:8000/',out=process.env.ORBIT_EVIDENCE||path.join(__dirname,'test-evidence/approved-effects');fs.mkdirSync(out,{recursive:true});
+const {pathToFileURL}=require('node:url');
+const projectRoot=path.resolve(__dirname,'..'),routeFixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/g1-routes.json'),'utf8'));
+const url=process.env.ORBIT_URL||'http://127.0.0.1:8000/',out=process.env.ORBIT_EVIDENCE||path.join(projectRoot,'test-evidence/approved-effects');fs.mkdirSync(out,{recursive:true});
 const report={url,checks:[],errors:[],screenshots:[],routes:[]};
 const pass=name=>{report.checks.push(name);console.log('PASS '+name)};
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
@@ -25,7 +27,7 @@ const pass=name=>{report.checks.push(name);console.log('PASS '+name)};
 
  for(const width of [320,390,768,1440,1920]){
   await page.setViewportSize({width,height:width<=390?844:900});await page.goto(url);await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(300);
-  const route=await page.locator('#flightActive').getAttribute('d');const baseline=await context.newPage();await baseline.setViewportSize({width,height:width<=390?844:900});await baseline.goto('http://127.0.0.1:8009/');await baseline.evaluate(()=>document.fonts.ready);await baseline.waitForTimeout(300);assert.equal(route,await baseline.locator('#flightActive').getAttribute('d'));await baseline.close();report.routes.push({width,exactG1:true});
+  const route=await page.locator('#flightActive').getAttribute('d');assert.equal(route,routeFixture.routes[String(width)]);report.routes.push({width,exactG1:true});
   for(const theme of ['dark','light']){if(await page.locator('html').getAttribute('data-theme')!==theme)await page.locator('#themeToggle').click();await page.waitForTimeout(1100);assert(await page.evaluate(()=>document.documentElement.scrollWidth===innerWidth));const file=path.join(out,`hero-${theme}-${width}.png`);await page.screenshot({path:file});report.screenshots.push(file);}
  }
  pass('Exact original zigzag geometry at five widths; both themes have no overflow');
@@ -43,5 +45,5 @@ const pass=name=>{report.checks.push(name);console.log('PASS '+name)};
   if(mode==='autoplay'){await p.locator('#startPlayback').waitFor({state:'visible'});await p.evaluate(()=>window.allowVideo=true);await p.locator('#startPlayback').click();await p.waitForFunction(()=>document.querySelector('.hero-media').dataset.mediaState==='video');assert(await p.locator('#startPlayback').isHidden());}
   pass(`${mode}: fallback or recovery works`);await c.close();
  }
- const offline=await browser.newPage(),requests=[];offline.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url())});await offline.context().setOffline(true);await offline.goto(new URL('portfolio-preview.html',url).href.replace(/^http:\/\/127.0.0.1:\d+\//,'file:///'+__dirname.replaceAll('\\','/')+'/'));try{await offline.waitForFunction(()=>document.querySelector('.hero-media').dataset.mediaState==='video');}catch(error){report.offlineFailure=await offline.evaluate(()=>({url:location.href,motion:document.documentElement.dataset.motion,state:document.querySelector('.hero-media').dataset.mediaState,video:document.querySelector('#holeVideo')?{ready:document.querySelector('#holeVideo').readyState,paused:document.querySelector('#holeVideo').paused,error:document.querySelector('#holeVideo').error?.message}:null}));throw error;}assert.deepEqual(requests,[]);pass('Standalone offline preview plays C without HTTP requests');await offline.close();assert.deepEqual(report.errors,[]);
+ const offline=await browser.newPage(),requests=[];offline.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url())});await offline.context().setOffline(true);await offline.goto(pathToFileURL(path.join(projectRoot,'portfolio-preview.html')).href);try{await offline.waitForFunction(()=>document.querySelector('.hero-media').dataset.mediaState==='video');}catch(error){report.offlineFailure=await offline.evaluate(()=>({url:location.href,motion:document.documentElement.dataset.motion,state:document.querySelector('.hero-media').dataset.mediaState,video:document.querySelector('#holeVideo')?{ready:document.querySelector('#holeVideo').readyState,paused:document.querySelector('#holeVideo').paused,error:document.querySelector('#holeVideo').error?.message}:null}));throw error;}assert.deepEqual(requests,[]);pass('Standalone offline preview plays C without HTTP requests');await offline.close();assert.deepEqual(report.errors,[]);
  }finally{await browser.close();fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2))}})().catch(e=>{console.error(e);process.exitCode=1});

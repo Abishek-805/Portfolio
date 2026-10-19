@@ -1,0 +1,19 @@
+{
+  "name": "orbit-cosmic-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static cosmic portfolio with accessible HTML content and native Canvas/WebGL effects.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "serve": "python -m http.server 8000 --bind 127.0.0.1",
+    "build": "node tools/build-preview.cjs",
+    "test": "node tests/verify.cjs",
+    "test:effects": "node tests/verify-approved-effects.cjs",
+    "test:audit": "node tests/verify-audit.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

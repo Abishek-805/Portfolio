@@ -10,7 +10,7 @@ The user approved black-hole candidate C, the shooting-star journey and trails, 
 
 Candidate: 16 regular regression groups passed; 13 focused integration groups passed; 16 journey/effects groups passed. Edge Chromium, 320/390/768/1440/1920 screenshots in both themes; regular responsive checks additionally cover 360/600/1024. Exact G1 route equality at five widths. 64 forward/reverse poses: maximum route error 0.368px; tangent dot product > .96. Decoded changing video frames and an actual wrap were observed. MP4 fallback, all-video failure, autoplay denial/retry, reduced motion, saved pause, no JavaScript, Canvas failure, offscreen pause, standalone offline playback, and cursor trail decay checked. No captured JS exceptions or unexpected failed requests in the regular suite.
 
-Local port 8000 is checked again after the guarded copy; final results and per-file hashes are in `C:/Users/ashek/Downloads/orbit-integration-20261019/INTEGRATION_RESULT.json`. Evidence is in that same folder. Tests ran without recording video; prior approved comparison recordings remain in the review bundle. `verify.cjs` retains its regular recording behavior; `verify-approved-effects.cjs` checks this integration and requires the preserved G1 server on port 8009 for exact route comparisons.
+Local port 8000 is checked again after the guarded copy; final results and per-file hashes are in `C:/Users/ashek/Downloads/orbit-integration-20261019/INTEGRATION_RESULT.json`. Evidence is in that same folder. Tests ran without recording video; prior approved comparison recordings remain in the review bundle. `tests/verify.cjs` retains its regular recording behavior; `tests/verify-approved-effects.cjs` checks this integration and requires the preserved G1 server on port 8009 for exact route comparisons.
 
 ## Rollback and scope
 
@@ -26,3 +26,6 @@ Physical phones, Safari/Firefox, thermal/battery behavior and screen readers wer
 ## Requested cursor and hero refinement
 
 Playback runs at 0.6x. The video and matching poster share a 22% enlargement and 6-degree counterclockwise tilt. Cursor hover scales only its pseudo-element artwork, fixing the displaced hit-point appearance. The trail is bounded to 160px (120px over controls), with 360ms decay and 48 samples. Click feedback is a 480ms luminous ring and eight rays anchored to the actual click, independent of subsequent pointer movement. No assets or routes were replaced.
+
+
+Organization note: build tooling now lives in tools/, tests in tests/, current documentation in docs/, and unused local evidence in trash/. Earlier absolute paths describe historical evidence, not required project dependencies.

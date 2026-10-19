@@ -46,3 +46,6 @@ The archive includes original index.html, script.js, materials.js and portfolio-
 | Mobile DevTools throttling after GPU deferral | 91 | 2.8s | 9ms | 0.000 |
 
 The simulated post-deferral audit scored 100 in the automated accessibility and best-practices categories, with visible-label matching passing. The separate DevTools-throttled run measured performance only. These are single-run lab comparisons, not statistically controlled physical-device benchmarks. Simulated and DevTools throttling are different configurations and must not be treated as interchangeable scores. Candidate port 8010 served the same final runtime bytes as the integrated app on port 8000. Lighthouse artifacts and the summarized configuration are retained externally.
+
+
+Organization note: build tooling now lives in tools/, tests in tests/, current documentation in docs/, and unused local evidence in trash/. Earlier absolute paths describe historical evidence, not required project dependencies.

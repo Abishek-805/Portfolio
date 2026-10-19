@@ -2,11 +2,11 @@
 
 Generated with the built-in image_gen tool using the imagegen skill. Reference images were supplied as visual references, not modified originals. The selected generated PNGs are preserved in `C:/Users/ashek/Downloads/orbit-video-audit-20261018/generated/`. The project uses optimized WebP encodings with the generated alpha preserved, including the black-hole center. Galaxy and nebula encodings were resized proportionally without cropping; their alpha planes match the corresponding resized source exactly. No CSS mask is applied to these foreground images.
 
-Delivered project assets:
+Historical delivered assets (the former hero now lives in the local trash archive):
 
-- `C:/Users/ashek/Downloads/3d-portfolio-v1/assets/horizon-original-v2.webp` — 1536×1024, 279,988 bytes.
-- `C:/Users/ashek/Downloads/3d-portfolio-v1/assets/spiral-galaxy-original.webp` — 1000×667, 269,186 bytes.
-- `C:/Users/ashek/Downloads/3d-portfolio-v1/assets/nebula-original.webp` — 840×840, 218,230 bytes.
+- `trash/assets/horizon-original-v2.webp` — 1536×1024, 279,988 bytes.
+- `assets/spiral-galaxy-original.webp` — 1000×667, 269,186 bytes.
+- `assets/nebula-original.webp` — 840×840, 218,230 bytes.
 
 These are illustrative AI-assisted artworks. The galaxy is fictional; it is not presented as a photograph of NGC 1300. The original NASA/ESA reference is retained and credited in the project. The hero and nebula references are unchanged.
 
