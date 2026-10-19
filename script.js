@@ -315,17 +315,17 @@
     image.addEventListener('load',()=>paintWorld(world));return world;
   });
   function paintWorld(world){
-    const {sphere,image,canvas,context}=world;if(!context)return;
+    const {sphere,image,canvas,context}=world;if(!context||!visible.has(world.section))return;
     context.clearRect(0,0,canvas.width,canvas.height);
     const rendered=window.OrbitMaterials?.draw(context,image,universeTime,0,canvas.width,canvas.height,0,lowPower);
     sphere.classList.toggle('material-ready',Boolean(rendered));
   }
   const sceneObserver = new IntersectionObserver(entries=>entries.forEach(entry=>{
     entry.target.classList.toggle('offscreen',!entry.isIntersecting);
-    if(entry.isIntersecting) visible.add(entry.target); else visible.delete(entry.target);
+    if(entry.isIntersecting){visible.add(entry.target);worlds.filter(world=>world.section===entry.target).forEach(paintWorld);}else visible.delete(entry.target);
     if(entry.isIntersecting && !entry.target.dataset.entered) {
       entry.target.dataset.entered='true';
-      entry.target.querySelectorAll(':scope > .station-copy, :scope > .section-heading, :scope > .observatory-copy, :scope > .intro-layout, :scope > h2').forEach(reveal);
+      entry.target.querySelectorAll(':scope > .station-copy, :scope > .section-heading, :scope > .observatory-copy, :scope > .intro-layout, :scope > h2').forEach(element=>reveal(element));
     }
     if(entry.target.id==='home')syncHeroVideo();
     if(entry.target.id==='observatory'&&!entry.isIntersecting&&galaxyBusy) finishGalaxy();
@@ -413,9 +413,9 @@
     paintNebula();
   }
   nebulaWindow.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')setNebulaView(1);});
-  nebulaWindow.addEventListener('pointerleave',()=>{if(!nebulaPinned)setNebulaView(0);});
+  nebulaWindow.addEventListener('pointerleave',()=>{if(!nebulaPinned&&document.activeElement!==nebulaWindow)setNebulaView(0);});
   nebulaWindow.addEventListener('focus',()=>setNebulaView(1));
-  nebulaWindow.addEventListener('blur',()=>{if(!nebulaPinned)setNebulaView(0);});
+  nebulaWindow.addEventListener('blur',()=>{if(!nebulaPinned&&!nebulaWindow.matches(':hover'))setNebulaView(0);});
   nebulaWindow.addEventListener('click',()=>{nebulaPinned=!nebulaPinned;setNebulaView(nebulaPinned?1:0);});
   $('nebulaImage').addEventListener('load',paintNebula);
   $('portalImage').addEventListener('load',()=>{sampleGalaxy();paintGalaxy();});

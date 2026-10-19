@@ -65,9 +65,11 @@ window.OrbitMaterials = (() => {
   }
   buffer.addEventListener('webglcontextlost',event=>{event.preventDefault();program=null;textures.clear();});
   buffer.addEventListener('webglcontextrestored',initialize);
-  const available=initialize();
+  let attempted=false;
   function draw(context,image,time,mode,w,h,surge=0,low=false){
-    if(!available||!program||!context||!image.complete||!image.naturalWidth||gl.isContextLost())return false;
+    if(!context||!image.complete||!image.naturalWidth)return false;
+    if(!attempted){attempted=true;initialize();}
+    if(!program||gl.isContextLost())return false;
     const cap=mode?low?270:1000:low?128:320,scale=Math.min(1,cap/Math.max(w,h));
     const bw=Math.max(1,Math.round(w*scale)),bh=Math.max(1,Math.round(h*scale));
     if(buffer.width!==bw||buffer.height!==bh){buffer.width=bw;buffer.height=bh;gl.viewport(0,0,bw,bh);}
