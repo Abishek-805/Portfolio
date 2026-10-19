@@ -172,8 +172,10 @@ html[data-motion=paused] .arrival-flash>.waypoint:after{animation:none!important
 /* G1: viewport chrome only; nested dialog/text-area scrollbars stay native. */
 html{scrollbar-width:none;-ms-overflow-style:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}
-#starCursor{width:18px;height:18px;font-size:0;background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 3px #edc99a);scale:1;transition:scale .15s}
-html.star-cursor.cursor-link #starCursor{scale:1.2}
+#starCursor{width:18px;height:18px;font-size:0;background:none;clip-path:none;filter:drop-shadow(0 0 3px #edc99a)}
+/* Scale only the artwork: scaling the positioned element also scales its translation. */
+#starCursor:before{content:'';position:absolute;inset:0;background:currentColor;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);scale:1;transition:scale .15s}
+html.star-cursor.cursor-link #starCursor:before{scale:1.2}
 html[data-theme=light].cursor-link #starCursor{color:#70411d;filter:drop-shadow(0 0 2px #fff)}
 
 /* G3 candidate: original cubic route, transparent procedural comet artwork. */
@@ -195,6 +197,7 @@ html[data-motion=paused] #cometWake,html[data-motion=paused] #cometDust,html[dat
 .hero-media{background:#000;mask-image:linear-gradient(#000 88%,transparent)}
 #holeVideo{display:block;position:absolute;left:20%;width:80%;height:100%;top:0;object-fit:contain;opacity:0;pointer-events:none;mix-blend-mode:normal}
 .hero-media img,html[data-theme=light] .hero-media img{opacity:1;animation:none;filter:none}
+.hero-media img,#holeVideo{transform:rotate(-6deg) scale(1.22);transform-origin:50% 50%}
 .hero-media.video-ready img{opacity:0!important}.hero-media.video-ready #holeVideo{opacity:1}
 html[data-theme=light] .hero-media:after{background:linear-gradient(90deg,var(--bg) 3%,#07090ed4 23%,transparent 65%),linear-gradient(0deg,var(--bg),transparent 30%)}
 .video-start{position:absolute;z-index:4;left:6%;bottom:12%;font-size:11px;background:var(--bg)}
@@ -629,6 +632,7 @@ window.OrbitMaterials = (() => {
   const canvas = $('starfield'), ctx = canvas.getContext('2d');
   const portal = $('portal'), dust = $('portalDust'), dustCtx = dust.getContext('2d');
   const heroMedia=document.querySelector('.hero-media'),holeVideo=$('holeVideo'),startPlayback=$('startPlayback');
+  holeVideo.defaultPlaybackRate=holeVideo.playbackRate=.6;
   let videoLoaded=false,videoFailed=false;
   const nebulaWindow=$('nebulaWindow'),nebulaCanvas=$('nebulaDust'),nebulaCtx=nebulaCanvas.getContext('2d');
   const homeVisual=document.querySelector('.home-visual'),moonWorld=document.querySelector('.moon-world');
@@ -916,9 +920,9 @@ window.OrbitMaterials = (() => {
   // The native cursor stays available for touch, keyboard use, dialogs and reduced motion.
   const trailCanvas=$('cursorTrail'),trailCtx=trailCanvas.getContext('2d'),cursor=$('starCursor');
   const finePointer=matchMedia('(hover: hover) and (pointer: fine)');
-  let cursorFrame=0,trail=[],cursorTarget=null,cursorPosition=null,lastCursorTime=0,burstUntil=0;
+  let cursorFrame=0,trail=[],cursorTarget=null,cursorPosition=null,lastCursorTime=0,burstUntil=0,clickPosition=null;
   function clearCursor(){
-    root.classList.remove('star-cursor','cursor-link');trail=[];cursorTarget=null;cursorPosition=null;lastCursorTime=0;burstUntil=0;
+    root.classList.remove('star-cursor','cursor-link');trail=[];cursorTarget=null;cursorPosition=null;lastCursorTime=0;burstUntil=0;clickPosition=null;
     cancelAnimationFrame(cursorFrame);cursorFrame=0;
     if(trailCtx)trailCtx.clearRect(0,0,width,height);
   }
@@ -930,10 +934,10 @@ window.OrbitMaterials = (() => {
     if(lag>6){cursorPosition.x=cursorTarget.x-dx/lag*6;cursorPosition.y=cursorTarget.y-dy/lag*6;}
     cursor.style.transform=`translate(${cursorPosition.x-9}px,${cursorPosition.y-9}px)`;
     const previous=trail[trail.length-1];
-    if(!previous||Math.hypot(previous.x-cursorPosition.x,previous.y-cursorPosition.y)>.25){trail.push({...cursorPosition,time});if(trail.length>32)trail.shift();}
-    trail=trail.filter(point=>time-point.time<220);
+    if(!previous||Math.hypot(previous.x-cursorPosition.x,previous.y-cursorPosition.y)>.25){trail.push({...cursorPosition,time});if(trail.length>48)trail.shift();}
+    trail=trail.filter(point=>time-point.time<360);
     trailCtx.clearRect(0,0,width,height);
-    const c=trailCtx,color=root.dataset.theme==='light'?'#865523':'#edc99a',limit=root.classList.contains('cursor-link')?32:64;
+    const c=trailCtx,color=root.dataset.theme==='light'?'#865523':'#edc99a',limit=root.classList.contains('cursor-link')?120:160;
     const points=[{...cursorPosition,distance:0}];let distance=0;
     for(let i=trail.length-1;i>=0;i--){
       const a=points[points.length-1],b=trail[i],length=Math.hypot(b.x-a.x,b.y-a.y);if(length<.1)continue;
@@ -942,13 +946,19 @@ window.OrbitMaterials = (() => {
     }
     if(points.length>1){
       const end=points[points.length-1],gradient=c.createLinearGradient(end.x,end.y,cursorPosition.x,cursorPosition.y);
-      gradient.addColorStop(0,'transparent');gradient.addColorStop(.65,root.dataset.theme==='light'?color:'#9dc9ec');gradient.addColorStop(1,color);c.fillStyle=gradient;c.globalAlpha=.72*Math.max(0,1-(time-trail[trail.length-1].time)/220);
+      gradient.addColorStop(0,'transparent');gradient.addColorStop(.65,root.dataset.theme==='light'?color:'#9dc9ec');gradient.addColorStop(1,color);c.fillStyle=gradient;c.globalAlpha=.88*Math.max(0,1-(time-trail[trail.length-1].time)/360);
       const sides=[[],[]];
-      points.forEach((point,i)=>{const next=points[Math.min(i+1,points.length-1)],prev=points[Math.max(0,i-1)],dx=next.x-prev.x,dy=next.y-prev.y,length=Math.max(.01,Math.hypot(dx,dy)),radius=1.5*Math.pow(1-point.distance/Math.max(1,distance),.8);sides[0].push({x:point.x-dy/length*radius,y:point.y+dx/length*radius});sides[1].push({x:point.x+dy/length*radius,y:point.y-dx/length*radius});});
+      points.forEach((point,i)=>{const next=points[Math.min(i+1,points.length-1)],prev=points[Math.max(0,i-1)],dx=next.x-prev.x,dy=next.y-prev.y,length=Math.max(.01,Math.hypot(dx,dy)),radius=2.3*Math.pow(1-point.distance/Math.max(1,distance),.8);sides[0].push({x:point.x-dy/length*radius,y:point.y+dx/length*radius});sides[1].push({x:point.x+dy/length*radius,y:point.y-dx/length*radius});});
       c.beginPath();[...sides[0],...sides[1].reverse()].forEach((point,i)=>i?c.lineTo(point.x,point.y):c.moveTo(point.x,point.y));c.closePath();c.fill();
       c.fillStyle=color;points.filter((_,i)=>i>0&&i%Math.ceil(points.length/6)===0).forEach(point=>{c.globalAlpha=.35*(1-point.distance/limit);c.fillRect(point.x-.6,point.y-.6,1.2,1.2);});
     }
-    if(burstUntil>time){const progress=1-(burstUntil-time)/220;c.globalAlpha=(1-progress)*.65;c.strokeStyle=color;c.lineWidth=1;c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3,r=4+progress*9;c.moveTo(cursorPosition.x+Math.cos(a)*r,cursorPosition.y+Math.sin(a)*r);c.lineTo(cursorPosition.x+Math.cos(a)*(r+3),cursorPosition.y+Math.sin(a)*(r+3));}c.stroke();}
+    if(burstUntil>time&&clickPosition){
+      const progress=1-(burstUntil-time)/480,r=12+progress*28,{x,y}=clickPosition;
+      c.save();c.globalAlpha=(1-progress)*.95;c.strokeStyle=color;c.lineWidth=1.8;c.shadowColor=color;c.shadowBlur=8;
+      c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.stroke();c.beginPath();
+      for(let i=0;i<8;i++){const a=i*Math.PI/4;c.moveTo(x+Math.cos(a)*(r+3),y+Math.sin(a)*(r+3));c.lineTo(x+Math.cos(a)*(r+11),y+Math.sin(a)*(r+11));}
+      c.stroke();c.restore();
+    }
     c.globalAlpha=1;
     if(trail.length||burstUntil>time)cursorFrame=requestAnimationFrame(paintCursor);
   }
@@ -960,7 +970,7 @@ window.OrbitMaterials = (() => {
     if(!cursorPosition){cursorPosition={...cursorTarget};cursor.style.transform=`translate(${cursorPosition.x-9}px,${cursorPosition.y-9}px)`;}
     if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);
   },{passive:true});
-  window.addEventListener('pointerdown',()=>{if(!cursorTarget)return;burstUntil=performance.now()+220;if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);},{passive:true});
+  window.addEventListener('pointerdown',event=>{if(!cursorTarget||event.pointerType!=='mouse'||still()||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable]'))return;clickPosition={x:event.clientX,y:event.clientY};burstUntil=performance.now()+480;if(!cursorFrame)cursorFrame=requestAnimationFrame(paintCursor);},{passive:true});
   document.addEventListener('pointerleave',clearCursor);window.addEventListener('blur',clearCursor);
   document.addEventListener('keydown',clearCursor);finePointer.addEventListener('change',clearCursor);
   document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('toggle',clearCursor));

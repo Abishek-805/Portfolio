@@ -1,6 +1,6 @@
 # ORBIT: animated cosmic portfolio, live refinement
 
-Approved effects integrated on 19 October 2026: Blender-rendered black-hole loop with poster/MP4 fallbacks, the original zigzag route with comet wake and checkpoint rays, and an 18px star cursor with a shorter fading trail. See `APPROVED_EFFECTS_INTEGRATION.md` for validation and rollback details. The source model stays private.
+Approved effects integrated on 19 October 2026: Blender-rendered black-hole loop with poster/MP4 fallbacks, the original zigzag route with comet wake and checkpoint rays, and an 18px star cursor with a fading trail. Latest refinement slows the black hole to 0.6x, enlarges/tilts it, fixes cursor hover alignment and adds a longer trail with a visible click burst. See `APPROVED_EFFECTS_INTEGRATION.md` for validation and rollback details. The source model stays private.
 
 Open http://127.0.0.1:8000/ while the local server is running. Refresh the existing tab after changes. Alternatively, open `portfolio-preview.html`: it embeds all required assets and works offline.
 

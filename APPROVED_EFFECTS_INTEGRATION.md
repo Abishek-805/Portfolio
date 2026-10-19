@@ -22,3 +22,7 @@ Work is isolated on feature/orbit-approved-effects-20261019, then copied into th
 ## Limits
 
 Physical phones, Safari/Firefox, thermal/battery behavior and screen readers were not tested. Browser measurements are not physical-device FPS. Native video can still show a short playback hitch at a loop boundary, as disclosed in candidate C's review. The portfolio still uses the requested replaceable personal/project placeholders.
+
+## Requested cursor and hero refinement
+
+Playback runs at 0.6x. The video and matching poster share a 22% enlargement and 6-degree counterclockwise tilt. Cursor hover scales only its pseudo-element artwork, fixing the displaced hit-point appearance. The trail is bounded to 160px (120px over controls), with 360ms decay and 48 samples. Click feedback is a 480ms luminous ring and eight rays anchored to the actual click, independent of subsequent pointer movement. No assets or routes were replaced.
